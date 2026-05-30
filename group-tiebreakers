@@ -1,0 +1,25 @@
+FIFA flipped the script on the rules. In past World Cups, overall goal difference was always the first tie-breaker. This year, head-to-head results are prioritized first for intra-group ties, matching the style used in the Euros and UEFA Champions League.
+(a) Ranking Teams Within the Same Group
+If two or more teams finish their three group matches tied on points (3 for a win, 1 for a draw, 0 for a loss), the following criteria are applied in exact order until the tie is broken:
+1. Head-to-Head Points: Points earned only in the matches played between the tied teams.
+2. Head-to-Head Goal Difference: Goal difference resulting only from matches played between the tied teams.
+3. Head-to-Head Goals Scored: Total goals scored only in the matches between the tied teams.
+4. Overall Goal Difference: Total goals scored minus total goals conceded across all three group matches.
+5. Overall Goals Scored: Total number of goals scored across all three group matches.
+6. Fair Play (Team Conduct) Score: The team with the cleanest disciplinary record wins. Teams start at 0 and lose points for cards accumulated across the three matches:
+Yellow card: −1 point
+Indirect red card (second yellow): −3 points
+Direct red card: −4 points
+Yellow card and direct red card: −5 points
+7. FIFA World Ranking: The team's position in the official FIFA Men's World Ranking entry entering the tournament.
+Corner Case: The Three-Way Tie
+If three teams finish equal on points, a "mini-table" is created containing only those three teams (completely ignoring the fourth team's matches). Steps 1 through 3 are applied to this mini-league.
+If this process successfully determines the rank of one team (e.g., Team A is clearly first) but leaves the other two (Team B and Team C) still completely tied, the comparison restarts from Step 1 exclusively between the two remaining tied teams before moving on to overall group metrics.
+(b) Ranking the 8 Best 3rd-Place Teams
+Once all 12 groups conclude, the 12 teams that finished in 3rd place are thrown into a single macro-table to determine which 8 squeeze into the knockout stage. Because these teams played in entirely different groups and never faced one another, head-to-head comparison is impossible.
+Instead, they are ranked using group-wide statistics in this exact order:
+1. Most Points: Total points accumulated in their respective group.
+2. Highest Overall Goal Difference: Total goals scored minus goals conceded in their group.
+3. Most Overall Goals Scored: Highest number of total goals scored in their group.
+4. Fair Play Score: The fewest card penalty deductions across their three group matches.
+5. FIFA World Ranking: The pre-tournament global ranking position.

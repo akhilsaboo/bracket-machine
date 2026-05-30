@@ -1,0 +1,13 @@
+{
+  "name": "fifa2026",
+  "private": true,
+  "description": "FIFA World Cup 2026 bracket machine — Python engine + Next.js web app (in web/).",
+  "scripts": {
+    "dev": "cd web && npm run dev",
+    "build": "cd web && npm run build",
+    "start": "cd web && npm start",
+    "validate": "cd web && npm run validate:engine",
+    "preview": "cd web && npx vercel",
+    "deploy": "cd web && npx vercel --prod"
+  }
+}

@@ -1,0 +1,1527 @@
+{
+  "seed": 2026,
+  "groups": {
+    "A": {
+      "matches": [
+        {
+          "home": "MEX",
+          "away": "RSA",
+          "homeGoals": 0,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "MEX",
+          "away": "KOR",
+          "homeGoals": 4,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "MEX",
+          "away": "CZE",
+          "homeGoals": 4,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "RSA",
+          "away": "KOR",
+          "homeGoals": 4,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "RSA",
+          "away": "CZE",
+          "homeGoals": 0,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "KOR",
+          "away": "CZE",
+          "homeGoals": 2,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "RSA",
+        "MEX",
+        "KOR",
+        "CZE"
+      ]
+    },
+    "B": {
+      "matches": [
+        {
+          "home": "CAN",
+          "away": "BIH",
+          "homeGoals": 2,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "CAN",
+          "away": "QAT",
+          "homeGoals": 2,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "CAN",
+          "away": "SUI",
+          "homeGoals": 3,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "BIH",
+          "away": "QAT",
+          "homeGoals": 2,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "BIH",
+          "away": "SUI",
+          "homeGoals": 0,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "QAT",
+          "away": "SUI",
+          "homeGoals": 3,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "CAN",
+        "SUI",
+        "BIH",
+        "QAT"
+      ]
+    },
+    "C": {
+      "matches": [
+        {
+          "home": "BRA",
+          "away": "MAR",
+          "homeGoals": 4,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "BRA",
+          "away": "HAI",
+          "homeGoals": 4,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "BRA",
+          "away": "SCO",
+          "homeGoals": 1,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "MAR",
+          "away": "HAI",
+          "homeGoals": 3,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "MAR",
+          "away": "SCO",
+          "homeGoals": 0,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "HAI",
+          "away": "SCO",
+          "homeGoals": 4,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "BRA",
+        "HAI",
+        "SCO",
+        "MAR"
+      ]
+    },
+    "D": {
+      "matches": [
+        {
+          "home": "USA",
+          "away": "PAR",
+          "homeGoals": 3,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "USA",
+          "away": "AUS",
+          "homeGoals": 2,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "USA",
+          "away": "TUR",
+          "homeGoals": 4,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "PAR",
+          "away": "AUS",
+          "homeGoals": 1,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "PAR",
+          "away": "TUR",
+          "homeGoals": 4,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "AUS",
+          "away": "TUR",
+          "homeGoals": 2,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "USA",
+        "AUS",
+        "PAR",
+        "TUR"
+      ]
+    },
+    "E": {
+      "matches": [
+        {
+          "home": "GER",
+          "away": "CUR",
+          "homeGoals": 3,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "GER",
+          "away": "CIV",
+          "homeGoals": 1,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "GER",
+          "away": "ECU",
+          "homeGoals": 2,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "CUR",
+          "away": "CIV",
+          "homeGoals": 1,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "CUR",
+          "away": "ECU",
+          "homeGoals": 0,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "CIV",
+          "away": "ECU",
+          "homeGoals": 4,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "CIV",
+        "ECU",
+        "CUR",
+        "GER"
+      ]
+    },
+    "F": {
+      "matches": [
+        {
+          "home": "NED",
+          "away": "JPN",
+          "homeGoals": 1,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "NED",
+          "away": "SWE",
+          "homeGoals": 2,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "NED",
+          "away": "TUN",
+          "homeGoals": 4,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "JPN",
+          "away": "SWE",
+          "homeGoals": 4,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "JPN",
+          "away": "TUN",
+          "homeGoals": 4,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "SWE",
+          "away": "TUN",
+          "homeGoals": 3,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "NED",
+        "JPN",
+        "SWE",
+        "TUN"
+      ]
+    },
+    "G": {
+      "matches": [
+        {
+          "home": "BEL",
+          "away": "EGY",
+          "homeGoals": 4,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "BEL",
+          "away": "IRN",
+          "homeGoals": 4,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "BEL",
+          "away": "NZL",
+          "homeGoals": 0,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "EGY",
+          "away": "IRN",
+          "homeGoals": 2,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "EGY",
+          "away": "NZL",
+          "homeGoals": 4,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "IRN",
+          "away": "NZL",
+          "homeGoals": 3,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "BEL",
+        "EGY",
+        "IRN",
+        "NZL"
+      ]
+    },
+    "H": {
+      "matches": [
+        {
+          "home": "ESP",
+          "away": "CPV",
+          "homeGoals": 3,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "ESP",
+          "away": "KSA",
+          "homeGoals": 4,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "ESP",
+          "away": "URU",
+          "homeGoals": 4,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "CPV",
+          "away": "KSA",
+          "homeGoals": 0,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "CPV",
+          "away": "URU",
+          "homeGoals": 1,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "KSA",
+          "away": "URU",
+          "homeGoals": 3,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "KSA",
+        "CPV",
+        "ESP",
+        "URU"
+      ]
+    },
+    "I": {
+      "matches": [
+        {
+          "home": "FRA",
+          "away": "SEN",
+          "homeGoals": 1,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "FRA",
+          "away": "NOR",
+          "homeGoals": 1,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "FRA",
+          "away": "IRQ",
+          "homeGoals": 3,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "SEN",
+          "away": "NOR",
+          "homeGoals": 3,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "SEN",
+          "away": "IRQ",
+          "homeGoals": 1,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "NOR",
+          "away": "IRQ",
+          "homeGoals": 3,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "IRQ",
+        "SEN",
+        "NOR",
+        "FRA"
+      ]
+    },
+    "J": {
+      "matches": [
+        {
+          "home": "ARG",
+          "away": "ALG",
+          "homeGoals": 2,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "ARG",
+          "away": "AUT",
+          "homeGoals": 0,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "ARG",
+          "away": "JOR",
+          "homeGoals": 1,
+          "awayGoals": 1,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "ALG",
+          "away": "AUT",
+          "homeGoals": 3,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "ALG",
+          "away": "JOR",
+          "homeGoals": 0,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "AUT",
+          "away": "JOR",
+          "homeGoals": 4,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "ALG",
+        "JOR",
+        "AUT",
+        "ARG"
+      ]
+    },
+    "K": {
+      "matches": [
+        {
+          "home": "POR",
+          "away": "COD",
+          "homeGoals": 4,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "POR",
+          "away": "UZB",
+          "homeGoals": 4,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "POR",
+          "away": "COL",
+          "homeGoals": 2,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "COD",
+          "away": "UZB",
+          "homeGoals": 0,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "COD",
+          "away": "COL",
+          "homeGoals": 0,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "UZB",
+          "away": "COL",
+          "homeGoals": 4,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "POR",
+        "UZB",
+        "COL",
+        "COD"
+      ]
+    },
+    "L": {
+      "matches": [
+        {
+          "home": "ENG",
+          "away": "CRO",
+          "homeGoals": 1,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "ENG",
+          "away": "GHA",
+          "homeGoals": 0,
+          "awayGoals": 3,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "ENG",
+          "away": "PAN",
+          "homeGoals": 0,
+          "awayGoals": 0,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 1,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "CRO",
+          "away": "GHA",
+          "homeGoals": 0,
+          "awayGoals": 2,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "CRO",
+          "away": "PAN",
+          "homeGoals": 4,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 2,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        },
+        {
+          "home": "GHA",
+          "away": "PAN",
+          "homeGoals": 3,
+          "awayGoals": 4,
+          "homeCards": {
+            "yellow": 0,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          },
+          "awayCards": {
+            "yellow": 3,
+            "secondYellow": 0,
+            "directRed": 0,
+            "yellowAndRed": 0
+          }
+        }
+      ],
+      "expectedOrder": [
+        "GHA",
+        "PAN",
+        "CRO",
+        "ENG"
+      ]
+    }
+  },
+  "expectedThirdOrder": [
+    "AUT",
+    "ESP",
+    "PAR",
+    "NOR",
+    "CRO",
+    "CUR",
+    "IRN",
+    "KOR",
+    "SCO",
+    "SWE",
+    "COL",
+    "BIH"
+  ],
+  "expectedAdvancingGroups": [
+    "A",
+    "D",
+    "E",
+    "G",
+    "H",
+    "I",
+    "J",
+    "L"
+  ],
+  "expectedR32": [
+    {
+      "match": 73,
+      "home": "2A",
+      "away": "2B"
+    },
+    {
+      "match": 74,
+      "home": "1E",
+      "away": "3D"
+    },
+    {
+      "match": 75,
+      "home": "1F",
+      "away": "2C"
+    },
+    {
+      "match": 76,
+      "home": "1C",
+      "away": "2F"
+    },
+    {
+      "match": 77,
+      "home": "1I",
+      "away": "3H"
+    },
+    {
+      "match": 78,
+      "home": "2E",
+      "away": "2I"
+    },
+    {
+      "match": 79,
+      "home": "1A",
+      "away": "3E"
+    },
+    {
+      "match": 80,
+      "home": "1L",
+      "away": "3I"
+    },
+    {
+      "match": 81,
+      "home": "1D",
+      "away": "3J"
+    },
+    {
+      "match": 82,
+      "home": "1G",
+      "away": "3A"
+    },
+    {
+      "match": 83,
+      "home": "2K",
+      "away": "2L"
+    },
+    {
+      "match": 84,
+      "home": "1H",
+      "away": "2J"
+    },
+    {
+      "match": 85,
+      "home": "1B",
+      "away": "3G"
+    },
+    {
+      "match": 86,
+      "home": "1J",
+      "away": "2H"
+    },
+    {
+      "match": 87,
+      "home": "1K",
+      "away": "3L"
+    },
+    {
+      "match": 88,
+      "home": "2D",
+      "away": "2G"
+    }
+  ]
+}

@@ -1,0 +1,338 @@
+[
+  {
+    "code": "RSA",
+    "name": "South Africa",
+    "group": "A",
+    "fifaRank": 60,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "CZE",
+    "name": "Czechia",
+    "group": "A",
+    "fifaRank": 41,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "KOR",
+    "name": "South Korea",
+    "group": "A",
+    "fifaRank": 25,
+    "fairPlayAvg": -7.5
+  },
+  {
+    "code": "MEX",
+    "name": "Mexico",
+    "group": "A",
+    "fifaRank": 15,
+    "fairPlayAvg": -5.5
+  },
+  {
+    "code": "BIH",
+    "name": "Bosnia & Herzegovina",
+    "group": "B",
+    "fifaRank": 65,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "QAT",
+    "name": "Qatar",
+    "group": "B",
+    "fifaRank": 55,
+    "fairPlayAvg": -7.0
+  },
+  {
+    "code": "CAN",
+    "name": "Canada",
+    "group": "B",
+    "fifaRank": 30,
+    "fairPlayAvg": -8.0
+  },
+  {
+    "code": "SUI",
+    "name": "Switzerland",
+    "group": "B",
+    "fifaRank": 19,
+    "fairPlayAvg": -7.0
+  },
+  {
+    "code": "HAI",
+    "name": "Haiti",
+    "group": "C",
+    "fifaRank": 83,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "SCO",
+    "name": "Scotland",
+    "group": "C",
+    "fifaRank": 43,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "MAR",
+    "name": "Morocco",
+    "group": "C",
+    "fifaRank": 8,
+    "fairPlayAvg": -5.0
+  },
+  {
+    "code": "BRA",
+    "name": "Brazil",
+    "group": "C",
+    "fifaRank": 6,
+    "fairPlayAvg": -3.0
+  },
+  {
+    "code": "PAR",
+    "name": "Paraguay",
+    "group": "D",
+    "fifaRank": 40,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "AUS",
+    "name": "Australia",
+    "group": "D",
+    "fifaRank": 27,
+    "fairPlayAvg": -6.0
+  },
+  {
+    "code": "TUR",
+    "name": "Türkiye",
+    "group": "D",
+    "fifaRank": 22,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "USA",
+    "name": "USA",
+    "group": "D",
+    "fifaRank": 16,
+    "fairPlayAvg": -4.0
+  },
+  {
+    "code": "CUR",
+    "name": "Curaçao",
+    "group": "E",
+    "fifaRank": 82,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "CIV",
+    "name": "Côte d'Ivoire",
+    "group": "E",
+    "fifaRank": 34,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "ECU",
+    "name": "Ecuador",
+    "group": "E",
+    "fifaRank": 23,
+    "fairPlayAvg": -3.0
+  },
+  {
+    "code": "GER",
+    "name": "Germany",
+    "group": "E",
+    "fifaRank": 10,
+    "fairPlayAvg": -4.5
+  },
+  {
+    "code": "TUN",
+    "name": "Tunisia",
+    "group": "F",
+    "fifaRank": 44,
+    "fairPlayAvg": -4.0
+  },
+  {
+    "code": "SWE",
+    "name": "Sweden",
+    "group": "F",
+    "fifaRank": 38,
+    "fairPlayAvg": -5.0
+  },
+  {
+    "code": "JPN",
+    "name": "Japan",
+    "group": "F",
+    "fifaRank": 18,
+    "fairPlayAvg": -5.0
+  },
+  {
+    "code": "NED",
+    "name": "Netherlands",
+    "group": "F",
+    "fifaRank": 7,
+    "fairPlayAvg": -2.0
+  },
+  {
+    "code": "NZL",
+    "name": "New Zealand",
+    "group": "G",
+    "fifaRank": 85,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "EGY",
+    "name": "Egypt",
+    "group": "G",
+    "fifaRank": 29,
+    "fairPlayAvg": -5.0
+  },
+  {
+    "code": "IRN",
+    "name": "IR Iran",
+    "group": "G",
+    "fifaRank": 21,
+    "fairPlayAvg": -6.0
+  },
+  {
+    "code": "BEL",
+    "name": "Belgium",
+    "group": "G",
+    "fifaRank": 9,
+    "fairPlayAvg": -5.0
+  },
+  {
+    "code": "CPV",
+    "name": "Cabo Verde",
+    "group": "H",
+    "fifaRank": 69,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "KSA",
+    "name": "Saudi Arabia",
+    "group": "H",
+    "fifaRank": 61,
+    "fairPlayAvg": -7.5
+  },
+  {
+    "code": "URU",
+    "name": "Uruguay",
+    "group": "H",
+    "fifaRank": 17,
+    "fairPlayAvg": -4.5
+  },
+  {
+    "code": "ESP",
+    "name": "Spain",
+    "group": "H",
+    "fifaRank": 2,
+    "fairPlayAvg": -1.0
+  },
+  {
+    "code": "IRQ",
+    "name": "Iraq",
+    "group": "I",
+    "fifaRank": 57,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "NOR",
+    "name": "Norway",
+    "group": "I",
+    "fifaRank": 31,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "SEN",
+    "name": "Senegal",
+    "group": "I",
+    "fifaRank": 14,
+    "fairPlayAvg": -6.5
+  },
+  {
+    "code": "FRA",
+    "name": "France",
+    "group": "I",
+    "fifaRank": 1,
+    "fairPlayAvg": -2.0
+  },
+  {
+    "code": "JOR",
+    "name": "Jordan",
+    "group": "J",
+    "fifaRank": 63,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "ALG",
+    "name": "Algeria",
+    "group": "J",
+    "fifaRank": 28,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "AUT",
+    "name": "Austria",
+    "group": "J",
+    "fifaRank": 24,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "ARG",
+    "name": "Argentina",
+    "group": "J",
+    "fifaRank": 3,
+    "fairPlayAvg": -4.0
+  },
+  {
+    "code": "UZB",
+    "name": "Uzbekistan",
+    "group": "K",
+    "fifaRank": 50,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "COD",
+    "name": "DR Congo",
+    "group": "K",
+    "fifaRank": 46,
+    "fairPlayAvg": -5.3875
+  },
+  {
+    "code": "COL",
+    "name": "Colombia",
+    "group": "K",
+    "fifaRank": 13,
+    "fairPlayAvg": -5.0
+  },
+  {
+    "code": "POR",
+    "name": "Portugal",
+    "group": "K",
+    "fifaRank": 5,
+    "fairPlayAvg": -5.0
+  },
+  {
+    "code": "GHA",
+    "name": "Ghana",
+    "group": "L",
+    "fifaRank": 74,
+    "fairPlayAvg": -9.0
+  },
+  {
+    "code": "PAN",
+    "name": "Panama",
+    "group": "L",
+    "fifaRank": 33,
+    "fairPlayAvg": -11.0
+  },
+  {
+    "code": "CRO",
+    "name": "Croatia",
+    "group": "L",
+    "fifaRank": 11,
+    "fairPlayAvg": -5.0
+  },
+  {
+    "code": "ENG",
+    "name": "England",
+    "group": "L",
+    "fifaRank": 4,
+    "fairPlayAvg": -1.0
+  }
+]

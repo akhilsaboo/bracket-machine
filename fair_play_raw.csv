@@ -1,0 +1,78 @@
+# Historical group-stage disciplinary records for the FIFA fair-play tiebreaker.
+# Scope: World Cups that USED the fair-play points tiebreaker (introduced 2018) -> 2018, 2022.
+# One row = one team's GROUP STAGE (3 matches) in one tournament.
+# Card columns are raw counts; build_fair_play.py converts them to FIFA points:
+#   yellow=-1, second_yellow(=2nd yellow / indirect red)=-3, direct_red=-4, yellow_and_red=-5
+# A team's prior = average of its per-tournament group-stage fair-play points.
+# Teams with NO row here inherit the all-team average (see build_fair_play.py).
+#
+# DATA CONFIDENCE: only the two rows below are independently verified (the 2018
+# Japan/Senegal case that the tiebreaker famously decided: Japan 4 yellows = -4,
+# Senegal 6 yellows = -6). Remaining 2018/2022 group-stage card counts still need
+# a verified pass (Wikipedia per-match reports / FIFA technical reports). Add rows
+# here and re-run build_fair_play.py; no engine changes needed.
+year,team,yellows,second_yellows,direct_reds,yellow_and_red
+2018,Japan,4,0,0,0
+2018,Senegal,6,0,0,0
+2018,Russia,4,1,0,0
+2018,Saudi Arabia,1,0,0,0
+2018,Egypt,5,0,0,0
+2018,Uruguay,1,0,0,0
+2018,Portugal,5,0,0,0
+2018,Spain,1,0,0,0
+2018,Morocco,8,0,0,0
+2018,Iran,7,0,0,0
+2018,France,3,0,0,0
+2018,Australia,7,0,0,0
+2018,Peru,5,0,0,0
+2018,Denmark,5,0,0,0
+2018,Argentina,6,0,0,0
+2018,Croatia,8,0,0,0
+2018,Nigeria,4,0,0,0
+2018,Iceland,3,0,0,0
+2018,Brazil,3,0,0,0
+2018,Switzerland,7,0,0,0
+2018,Costa Rica,6,0,0,0
+2018,Serbia,7,0,0,0
+2018,Germany,3,1,0,0
+2018,Mexico,4,0,0,0
+2018,Sweden,5,0,0,0
+2018,South Korea,10,0,0,0
+2018,Belgium,5,0,0,0
+2018,England,2,0,0,0
+2018,Tunisia,4,0,0,0
+2018,Panama,11,0,0,0
+2018,Poland,3,0,0,0
+2018,Colombia,1,0,1,0
+2022,Qatar,7,0,0,0
+2022,Ecuador,3,0,0,0
+2022,Senegal,7,0,0,0
+2022,Netherlands,2,0,0,0
+2022,England,0,0,0,0
+2022,Iran,5,0,0,0
+2022,USA,4,0,0,0
+2022,Wales,5,0,1,0
+2022,Argentina,2,0,0,0
+2022,Saudi Arabia,14,0,0,0
+2022,Mexico,7,0,0,0
+2022,Poland,5,0,0,0
+2022,France,1,0,0,0
+2022,Australia,5,0,0,0
+2022,Tunisia,4,0,0,0
+2022,Denmark,5,0,0,0
+2022,Spain,1,0,0,0
+2022,Germany,3,0,0,0
+2022,Japan,6,0,0,0
+2022,Costa Rica,6,0,0,0
+2022,Morocco,2,0,0,0
+2022,Croatia,2,0,0,0
+2022,Belgium,5,0,0,0
+2022,Canada,8,0,0,0
+2022,Brazil,3,0,0,0
+2022,Switzerland,7,0,0,0
+2022,Serbia,10,0,0,0
+2022,Cameroon,7,1,0,0
+2022,Portugal,5,0,0,0
+2022,Ghana,9,0,0,0
+2022,Uruguay,8,0,0,0
+2022,South Korea,5,0,0,0
