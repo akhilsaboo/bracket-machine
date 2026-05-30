@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { loadOrCreatePrimaryBracket, saveBracket } from "@/lib/brackets";
 import {
   usePredictions,
+  type AwardPicks,
   type BracketState,
   type KnockoutWinners,
   type Predictions,
@@ -24,6 +25,7 @@ export function BracketSync() {
   const {
     predictions,
     knockout,
+    awards,
     groupSubmitted,
     bracketSubmitted,
     tiebreakerGoals,
@@ -35,12 +37,20 @@ export function BracketSync() {
   const stateRef = useRef<BracketState>({
     predictions,
     knockout,
+    awards,
     groupSubmitted,
     bracketSubmitted,
     tiebreakerGoals,
   });
   useEffect(() => {
-    stateRef.current = { predictions, knockout, groupSubmitted, bracketSubmitted, tiebreakerGoals };
+    stateRef.current = {
+      predictions,
+      knockout,
+      awards,
+      groupSubmitted,
+      bracketSubmitted,
+      tiebreakerGoals,
+    };
   });
 
   const rowIdRef = useRef<string | null>(null);
@@ -64,6 +74,7 @@ export function BracketSync() {
       const row = await loadOrCreatePrimaryBracket(sb, userId, {
         predictions: s.predictions,
         knockout: s.knockout,
+        awards: s.awards,
         submittedAt: s.bracketSubmitted ? new Date().toISOString() : null,
         tiebreakerGoals: s.tiebreakerGoals,
       });
@@ -73,11 +84,13 @@ export function BracketSync() {
         submittedAtRef.current = row.submitted_at;
         const hasServerData =
           Object.keys((row.predictions as object) ?? {}).length > 0 ||
-          Object.keys((row.knockout as object) ?? {}).length > 0;
+          Object.keys((row.knockout as object) ?? {}).length > 0 ||
+          Object.keys((row.awards as object) ?? {}).length > 0;
         if (hasServerData) {
           replaceAll({
             predictions: (row.predictions as Predictions) ?? {},
             knockout: (row.knockout as KnockoutWinners) ?? {},
+            awards: (row.awards as AwardPicks) ?? {},
             groupSubmitted: stateRef.current.groupSubmitted || !!row.submitted_at,
             bracketSubmitted: !!row.submitted_at,
             tiebreakerGoals: row.tiebreaker_total_goals,
@@ -110,6 +123,7 @@ export function BracketSync() {
       void saveBracket(sb, rowIdRef.current, {
         predictions,
         knockout,
+        awards,
         submittedAt: submittedAtRef.current,
         tiebreakerGoals,
       });
@@ -118,7 +132,7 @@ export function BracketSync() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [predictions, knockout, bracketSubmitted, tiebreakerGoals, sb, hydrated]);
+  }, [predictions, knockout, awards, bracketSubmitted, tiebreakerGoals, sb, hydrated]);
 
   return null;
 }

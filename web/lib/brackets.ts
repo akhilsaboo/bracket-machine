@@ -1,11 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { KnockoutWinners, Predictions } from "@/lib/predictions";
+import type { AwardPicks, KnockoutWinners, Predictions } from "@/lib/predictions";
 
 export interface BracketRow {
   id: string;
   user_id: string;
   predictions: Predictions;
   knockout: KnockoutWinners;
+  awards: AwardPicks;
   submitted_at: string | null;
   tiebreaker_total_goals: number | null;
 }
@@ -13,6 +14,7 @@ export interface BracketRow {
 export interface BracketSeed {
   predictions: Predictions;
   knockout: KnockoutWinners;
+  awards: AwardPicks;
   submittedAt: string | null;
   tiebreakerGoals: number | null;
 }
@@ -41,6 +43,7 @@ export async function loadOrCreatePrimaryBracket(
       user_id: userId,
       predictions: seed.predictions,
       knockout: seed.knockout,
+      awards: seed.awards,
       submitted_at: seed.submittedAt,
       tiebreaker_total_goals: seed.tiebreakerGoals,
     })
@@ -63,6 +66,7 @@ export async function saveBracket(
     .update({
       predictions: patch.predictions,
       knockout: patch.knockout,
+      awards: patch.awards,
       submitted_at: patch.submittedAt,
       tiebreaker_total_goals: patch.tiebreakerGoals,
     })

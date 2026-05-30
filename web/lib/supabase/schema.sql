@@ -47,6 +47,7 @@ alter table public.brackets enable row level security;
 -- Additional bracket columns (idempotent).
 alter table public.brackets add column if not exists submitted_at timestamptz;
 alter table public.brackets add column if not exists tiebreaker_total_goals integer;
+alter table public.brackets add column if not exists awards jsonb not null default '{}'::jsonb;
 
 drop policy if exists "brackets: owner all" on public.brackets;
 create policy "brackets: owner all" on public.brackets

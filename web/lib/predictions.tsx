@@ -19,19 +19,25 @@ export type KnockoutWinners = Record<string, string>; // matchNo -> team code
 export interface BracketState {
   predictions: Predictions;
   knockout: KnockoutWinners;
+  awards: AwardPicks;
   groupSubmitted: boolean;
   bracketSubmitted: boolean;
   tiebreakerGoals: number | null;
 }
 
+/** Tournament-award picks keyed by award id (e.g. "golden_boot") -> team code. */
+export type AwardPicks = Record<string, string>;
+
 interface PredictionContextValue {
   predictions: Predictions;
   knockout: KnockoutWinners;
+  awards: AwardPicks;
   groupSubmitted: boolean;
   bracketSubmitted: boolean;
   tiebreakerGoals: number | null;
   setScore: (id: string, side: "home" | "away", value: number | null) => void;
   setKnockoutWinner: (match: number | string, code: string) => void;
+  setAward: (key: string, teamCode: string | null) => void;
   setGroupSubmitted: (v: boolean) => void;
   setBracketSubmitted: (v: boolean) => void;
   setTiebreakerGoals: (v: number | null) => void;
@@ -51,6 +57,7 @@ const STORAGE_KEY = "wc2026-predictions-v3";
 export function PredictionProvider({ children }: { children: ReactNode }) {
   const [predictions, setPredictions] = useState<Predictions>({});
   const [knockout, setKnockout] = useState<KnockoutWinners>({});
+  const [awards, setAwards] = useState<AwardPicks>({});
   const [groupSubmitted, setGroupSubmitted] = useState(false);
   const [bracketSubmitted, setBracketSubmitted] = useState(false);
   const [tiebreakerGoals, setTiebreakerGoals] = useState<number | null>(null);
@@ -72,6 +79,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(raw) as Partial<BracketState>;
         if (parsed.predictions) setPredictions(parsed.predictions);
         if (parsed.knockout) setKnockout(parsed.knockout);
+        if (parsed.awards) setAwards(parsed.awards);
         if (typeof parsed.groupSubmitted === "boolean") setGroupSubmitted(parsed.groupSubmitted);
         if (typeof parsed.bracketSubmitted === "boolean") setBracketSubmitted(parsed.bracketSubmitted);
         if (typeof parsed.tiebreakerGoals === "number" || parsed.tiebreakerGoals === null) {
@@ -100,6 +108,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
         JSON.stringify({
           predictions,
           knockout,
+          awards,
           groupSubmitted,
           bracketSubmitted,
           tiebreakerGoals,
@@ -108,7 +117,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore quota / private-mode errors
     }
-  }, [predictions, knockout, groupSubmitted, bracketSubmitted, tiebreakerGoals, hydrated]);
+  }, [predictions, knockout, awards, groupSubmitted, bracketSubmitted, tiebreakerGoals, hydrated]);
 
   const setScore = useCallback(
     (id: string, side: "home" | "away", value: number | null) => {
@@ -132,9 +141,22 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setAward = useCallback((key: string, teamCode: string | null) => {
+    setAwards((prev) => {
+      if (teamCode === null) {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return { ...prev, [key]: teamCode };
+    });
+  }, []);
+
   const replaceAll = useCallback((state: BracketState) => {
     setPredictions(state.predictions);
     setKnockout(state.knockout);
+    setAwards(state.awards);
     setGroupSubmitted(state.groupSubmitted);
     setBracketSubmitted(state.bracketSubmitted);
     setTiebreakerGoals(state.tiebreakerGoals);
@@ -143,6 +165,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
   const reset = useCallback(() => {
     setPredictions({});
     setKnockout({});
+    setAwards({});
     setGroupSubmitted(false);
     setBracketSubmitted(false);
     setTiebreakerGoals(null);
@@ -155,11 +178,13 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
       value={{
         predictions,
         knockout,
+        awards,
         groupSubmitted,
         bracketSubmitted,
         tiebreakerGoals,
         setScore,
         setKnockoutWinner,
+        setAward,
         setGroupSubmitted,
         setBracketSubmitted,
         setTiebreakerGoals,
