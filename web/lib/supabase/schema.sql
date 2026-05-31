@@ -83,6 +83,9 @@ create table if not exists public.pool_members (
 );
 create index if not exists pool_members_user_idx on public.pool_members(user_id);
 alter table public.pool_members enable row level security;
+-- Which of the member's brackets is attributed to this pool (nullable; the same
+-- bracket can be attributed to many pools).
+alter table public.pool_members add column if not exists bracket_id uuid references public.brackets(id) on delete set null;
 
 -- Helper: am I a member of this pool?
 create or replace function public.is_pool_member(pid uuid)
@@ -107,8 +110,9 @@ language sql security definer stable set search_path = public as $$
   select id, name from public.pools where invite_code = code limit 1;
 $$;
 
--- Idempotent join by invite code
-create or replace function public.join_pool_by_invite(code text)
+-- Idempotent join by invite code, attributing a chosen bracket (optional).
+drop function if exists public.join_pool_by_invite(text);
+create or replace function public.join_pool_by_invite(code text, bid uuid default null)
 returns table(pool_id uuid, name text)
 language plpgsql security definer set search_path = public as $$
 declare p record;
@@ -120,7 +124,7 @@ begin
   if not found then
     raise exception 'invite code not found';
   end if;
-  insert into public.pool_members (pool_id, user_id) values (p.id, auth.uid())
+  insert into public.pool_members (pool_id, user_id, bracket_id) values (p.id, auth.uid(), bid)
     on conflict do nothing;
   pool_id := p.id; name := p.name; return next;
 end;
@@ -147,6 +151,9 @@ create policy "pool_members: same-pool read" on public.pool_members for select
 drop policy if exists "pool_members: self insert" on public.pool_members;
 create policy "pool_members: self insert" on public.pool_members for insert
   with check (user_id = auth.uid());
+drop policy if exists "pool_members: self update" on public.pool_members;
+create policy "pool_members: self update" on public.pool_members for update
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
 drop policy if exists "pool_members: leave or kick" on public.pool_members;
 create policy "pool_members: leave or kick" on public.pool_members for delete
   using (user_id = auth.uid() or exists(

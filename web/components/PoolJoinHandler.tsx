@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { usePredictions } from "@/lib/predictions";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { joinPoolByCode } from "@/lib/pools";
 
@@ -12,6 +13,7 @@ const PENDING_KEY = "wc2026-pending-join";
 
 export function PoolJoinHandler({ onJoined }: { onJoined: () => void }) {
   const { user, requestSignIn } = useAuth();
+  const { activeId } = usePredictions();
   const [pendingCode, setPendingCode] = useState<string | null>(null);
   const [poolName, setPoolName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +72,7 @@ export function PoolJoinHandler({ onJoined }: { onJoined: () => void }) {
     if (!sb) return;
     setBusy(true);
     setError(null);
-    const res = await joinPoolByCode(sb, pendingCode);
+    const res = await joinPoolByCode(sb, pendingCode, activeId);
     setBusy(false);
     cleanupUrl();
     localStorage.removeItem(PENDING_KEY);
@@ -86,7 +88,7 @@ export function PoolJoinHandler({ onJoined }: { onJoined: () => void }) {
       setPendingCode(null);
       setPoolName(null);
     }, 2000);
-  }, [pendingCode, user, requestSignIn, onJoined]);
+  }, [pendingCode, user, requestSignIn, onJoined, activeId]);
 
   // If the user has a pending code in localStorage AND just signed in, finish the join.
   useEffect(() => {

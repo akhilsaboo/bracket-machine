@@ -138,25 +138,6 @@ export function AuthControls() {
               </div>
             </div>
 
-            <div className="px-2 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              My brackets
-            </div>
-            <div className="px-2 pb-2">
-              <div className="flex items-center justify-between rounded-md bg-slate-100 px-3 py-2 text-sm font-medium dark:bg-slate-800">
-                <span>Your bracket</span>
-                <span className="text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
-                  Active
-                </span>
-              </div>
-              <button
-                disabled
-                title="Multiple brackets coming soon"
-                className="mt-1 w-full cursor-not-allowed rounded-md px-3 py-1.5 text-left text-xs text-slate-400"
-              >
-                + New bracket (soon)
-              </button>
-            </div>
-
             <div className="border-t border-slate-200 dark:border-slate-700">
               <button
                 onClick={handleSignOut}

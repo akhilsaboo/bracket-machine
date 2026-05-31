@@ -14,6 +14,7 @@ export interface PoolMember {
   user_id: string;
   joined_at: string;
   display_name: string | null;
+  bracket_id: string | null;
 }
 
 export interface MemberBracket {
@@ -37,6 +38,7 @@ export async function createPool(
   sb: SupabaseClient,
   name: string,
   ownerId: string,
+  bracketId?: string | null,
 ): Promise<Pool | null> {
   // Up to 5 retries on the (very rare) unique-collision on invite_code.
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -47,8 +49,10 @@ export async function createPool(
       .select()
       .single();
     if (!error && data) {
-      // auto-add the creator as a member
-      await sb.from("pool_members").insert({ pool_id: data.id, user_id: ownerId });
+      // auto-add the creator as a member, attributing their chosen bracket
+      await sb
+        .from("pool_members")
+        .insert({ pool_id: data.id, user_id: ownerId, bracket_id: bracketId ?? null });
       return data as Pool;
     }
     if (error && (error as { code?: string }).code !== "23505") {
@@ -62,10 +66,11 @@ export async function createPool(
 export async function joinPoolByCode(
   sb: SupabaseClient,
   rawCode: string,
+  bracketId?: string | null,
 ): Promise<{ pool_id: string; name: string } | { error: string }> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return { error: "Enter an invite code." };
-  const { data, error } = await sb.rpc("join_pool_by_invite", { code });
+  const { data, error } = await sb.rpc("join_pool_by_invite", { code, bid: bracketId ?? null });
   if (error) return { error: error.message || "Could not join pool." };
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return { error: "Invite code not found." };
@@ -94,7 +99,7 @@ export async function getPoolMembers(
 ): Promise<PoolMember[]> {
   const { data, error } = await sb
     .from("pool_members")
-    .select("user_id, joined_at, profiles(display_name)")
+    .select("user_id, joined_at, bracket_id, profiles(display_name)")
     .eq("pool_id", poolId)
     .order("joined_at", { ascending: true });
   if (error) {
@@ -105,15 +110,50 @@ export async function getPoolMembers(
     const row = m as unknown as {
       user_id: string;
       joined_at: string;
+      bracket_id: string | null;
       profiles: { display_name: string | null } | { display_name: string | null }[] | null;
     };
     const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
     return {
       user_id: row.user_id,
       joined_at: row.joined_at,
+      bracket_id: row.bracket_id ?? null,
       display_name: profile?.display_name ?? null,
     };
   });
+}
+
+/** Attribute one of my brackets to a pool (or clear it with null). */
+export async function setPoolBracket(
+  sb: SupabaseClient,
+  poolId: string,
+  userId: string,
+  bracketId: string | null,
+): Promise<boolean> {
+  const { error } = await sb
+    .from("pool_members")
+    .update({ bracket_id: bracketId })
+    .eq("pool_id", poolId)
+    .eq("user_id", userId);
+  if (error) console.error("setPoolBracket error:", error);
+  return !error;
+}
+
+/** Fetch specific brackets by id (the ones attributed to a pool). */
+export async function getBracketsByIds(
+  sb: SupabaseClient,
+  ids: string[],
+): Promise<MemberBracket[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await sb
+    .from("brackets")
+    .select("id, user_id, predictions, knockout, submitted_at, tiebreaker_total_goals")
+    .in("id", ids);
+  if (error) {
+    console.error("getBracketsByIds error:", error);
+    return [];
+  }
+  return (data ?? []) as MemberBracket[];
 }
 
 export async function getMemberBrackets(
