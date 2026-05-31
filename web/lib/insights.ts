@@ -19,6 +19,7 @@ export interface MatchInsight {
   odds: MatchOdds | null; // null until an odds provider is wired / market exists
   prediction: string; // e.g. "Brazil edge it 2–1"
   storylines: string[]; // 2–3 short bullets
+  recap: string; // ~30s spoken-word preview script (read aloud via Web Speech)
   generatedAt: string;
   error?: string;
 }

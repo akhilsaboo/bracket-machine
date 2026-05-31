@@ -15,15 +15,16 @@ const SCHEMA = {
   properties: {
     prediction: { type: "string" },
     storylines: { type: "array", items: { type: "string" } },
+    recap: { type: "string" },
   },
-  required: ["prediction", "storylines"],
+  required: ["prediction", "storylines", "recap"],
   additionalProperties: false,
 } as const;
 
 async function generate(
   home: { name: string; fifaRank: number },
   away: { name: string; fifaRank: number },
-): Promise<{ prediction: string; storylines: string[] }> {
+): Promise<{ prediction: string; storylines: string[]; recap: string }> {
   const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from env
 
   const msg = await anthropic.messages.create({
@@ -32,9 +33,10 @@ async function generate(
     thinking: { type: "disabled" },
     system:
       "You are a concise, knowledgeable football (soccer) analyst previewing a 2026 FIFA World Cup matchup. " +
-      "Give one short prediction sentence (a plausible scoreline is welcome) and 2-3 punchy storylines. " +
+      "Return: (1) one short prediction sentence (a plausible scoreline is welcome); (2) 2-3 punchy storylines, each under ~18 words; " +
+      "(3) a 'recap' — a spoken-word preview of about 60-75 words (~30 seconds read aloud), conversational like a broadcaster's intro, no bullet points. " +
       "Stay grounded: reference well-known team strengths, rivalries, and star players you are confident about. " +
-      "Do NOT invent specific stats, exact past results, or injury news. Each storyline under ~18 words.",
+      "Do NOT invent specific stats, exact past results, or injury news.",
     messages: [
       {
         role: "user",
@@ -49,10 +51,12 @@ async function generate(
   const parsed = JSON.parse(text && "text" in text ? text.text : "{}") as {
     prediction?: string;
     storylines?: string[];
+    recap?: string;
   };
   return {
     prediction: parsed.prediction ?? "",
     storylines: Array.isArray(parsed.storylines) ? parsed.storylines.slice(0, 3) : [],
+    recap: parsed.recap ?? "",
   };
 }
 
@@ -120,6 +124,7 @@ export async function GET(req: Request) {
     odds: null,
     prediction: "",
     storylines: [] as string[],
+    recap: "",
     generatedAt: new Date().toISOString(),
   };
 
@@ -139,7 +144,14 @@ export async function GET(req: Request) {
 
   try {
     const [ai, odds] = await Promise.all([generate(home, away), fetchOdds(home.name, away.name)]);
-    const data: MatchInsight = { ...base, configured: true, odds, prediction: ai.prediction, storylines: ai.storylines };
+    const data: MatchInsight = {
+      ...base,
+      configured: true,
+      odds,
+      prediction: ai.prediction,
+      storylines: ai.storylines,
+      recap: ai.recap,
+    };
     cache.set(ck, { data, at: Date.now() });
     return Response.json(data);
   } catch (e) {

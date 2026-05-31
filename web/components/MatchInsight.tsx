@@ -16,6 +16,32 @@ export function MatchInsightButton({
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<MatchInsight | null>(null);
   const [loading, setLoading] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+
+  const stopSpeech = () => {
+    if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
+    setSpeaking(false);
+  };
+
+  const toggleRecap = (text: string) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    if (speaking) {
+      stopSpeech();
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.02;
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+    setSpeaking(true);
+  };
+
+  const close = () => {
+    stopSpeech();
+    setOpen(false);
+  };
 
   const openPanel = async () => {
     setOpen(true);
@@ -49,7 +75,7 @@ export function MatchInsightButton({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
           role="dialog"
           aria-modal="true"
-          onClick={() => setOpen(false)}
+          onClick={close}
         >
           <div
             className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900"
@@ -110,12 +136,21 @@ export function MatchInsightButton({
                     </div>
                   )}
 
+                  {data.recap && (
+                    <button
+                      onClick={() => toggleRecap(data.recap)}
+                      className="flex w-full items-center justify-center gap-2 rounded-md bg-[var(--wc-accent)]/10 py-2 text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/20"
+                    >
+                      {speaking ? "■ Stop recap" : "🔊 Play 30s recap"}
+                    </button>
+                  )}
+
                   <p className="text-[10px] text-slate-400">AI-generated · verify before betting the house.</p>
                 </>
               )}
 
               <button
-                onClick={() => setOpen(false)}
+                onClick={close}
                 className="w-full rounded-md border border-slate-300 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 Close
