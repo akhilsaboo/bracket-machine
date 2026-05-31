@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FILL_MODES, type FillMode, type FillModeId, type FillOptions } from "@/lib/autofill";
 import { TEAMS } from "@/lib/data";
 import { flag } from "@/lib/flags";
+import { VibeDuel } from "./VibeDuel";
 
 const PERSONAS = FILL_MODES.filter((m) => m.kind === "persona");
 const TEAMS_BY_NAME = [...TEAMS].sort((a, b) => a.name.localeCompare(b.name));
@@ -18,9 +19,12 @@ interface Props {
 export function AutoFillModal({ onApply, onClose }: Props) {
   // A persona awaiting its required nation choice (Overconfident Patriot).
   const [pendingNation, setPendingNation] = useState<FillMode | null>(null);
+  // Whether the Vibe Archivist jersey duel is running.
+  const [vibeDuel, setVibeDuel] = useState(false);
 
   const pickPersona = (m: FillMode) => {
-    if (m.needsNation) setPendingNation(m);
+    if (m.id === "vibe") setVibeDuel(true);
+    else if (m.needsNation) setPendingNation(m);
     else onApply(m.id, {});
   };
 
@@ -42,7 +46,12 @@ export function AutoFillModal({ onApply, onClose }: Props) {
           </p>
         </div>
 
-        {pendingNation ? (
+        {vibeDuel ? (
+          <VibeDuel
+            onConfirm={(vibeRanking) => onApply("vibe", { vibeRanking })}
+            onBack={() => setVibeDuel(false)}
+          />
+        ) : pendingNation ? (
           <NationPicker
             mode={pendingNation}
             onConfirm={(nation) => onApply(pendingNation.id, { nation })}

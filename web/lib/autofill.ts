@@ -82,7 +82,7 @@ export const FILL_MODES: FillMode[] = [
     label: "The Vibe Archivist",
     tagline: "I like their jerseys.",
     description:
-      "For the non-fan: a stable, gloriously arbitrary vibe ranking. (Flag/kit picker coming soon.)",
+      "For the non-fan: judge a few kits head-to-head, and your favourite jerseys march to glory.",
     emoji: "🎨",
     implemented: true,
   },
@@ -105,6 +105,8 @@ export const FILL_MODE_BY_ID: Record<FillModeId, FillMode> = Object.fromEntries(
 export interface FillOptions {
   /** Home nation team code — required by the Patriot persona. */
   nation?: string;
+  /** Vibe Archivist jersey-duel result: team code -> net preference (wins-losses). */
+  vibeRanking?: Record<string, number>;
 }
 
 /**
@@ -145,13 +147,18 @@ function chalkScore(home: Team, away: Team): Line {
   return favoredScore(home.fifaRank <= away.fifaRank, Math.abs(home.fifaRank - away.fifaRank));
 }
 
-// Stable per-team "vibe" in 0..99 — openly arbitrary (not real aesthetic data).
-// Placeholder until the interactive flag/jersey picker lands (see task #7).
+// Stable per-team "vibe" in 0..99 — the fallback ordering for teams the user
+// didn't judge in the jersey duel. Openly arbitrary (not real aesthetic data).
 function vibeScore(code: string): number {
   let h = 0;
   for (const c of code) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return h % 100;
 }
+
+// Overall vibe preference: the jersey-duel net result dominates (×1000); the hash
+// gives a stable ordering among un-judged teams and breaks ties.
+const vibePref = (code: string, opts: FillOptions): number =>
+  (opts.vibeRanking?.[code] ?? 0) * 1000 + vibeScore(code);
 
 const STRATEGIES: Partial<Record<FillModeId, FillStrategy>> = {
   // Overconfident Patriot: the chosen nation wins every match it plays; all other
@@ -205,11 +212,14 @@ const STRATEGIES: Partial<Record<FillModeId, FillStrategy>> = {
     },
   },
 
-  // Vibe Archivist: stable per-team "vibe" decides everything. For fun only.
+  // Vibe Archivist: the user's jersey-duel preference decides everything.
   vibe: {
-    score: (home, away) =>
-      favoredScore(vibeScore(home.code) >= vibeScore(away.code), Math.abs(vibeScore(home.code) - vibeScore(away.code)) / 3),
-    pickWinner: (a, b) => (vibeScore(a.code) >= vibeScore(b.code) ? a : b),
+    score: (home, away, opts) => {
+      const ph = vibePref(home.code, opts);
+      const pa = vibePref(away.code, opts);
+      return favoredScore(ph >= pa, Math.min(Math.abs(ph - pa) / 100, 35));
+    },
+    pickWinner: (a, b, opts) => (vibePref(a.code, opts) >= vibePref(b.code, opts) ? a : b),
   },
 };
 
