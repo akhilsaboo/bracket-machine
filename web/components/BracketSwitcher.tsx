@@ -5,6 +5,7 @@ import { usePredictions, MAX_BRACKETS } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { deleteBracketRow, upsertBracket } from "@/lib/brackets";
+import { realRound32, tournamentHasStarted } from "@/lib/results";
 
 export function BracketSwitcher() {
   const {
@@ -17,9 +18,17 @@ export function BracketSwitcher() {
     deleteBracket,
     duplicateBracket,
     allRecords,
+    now,
+    isPreview,
   } = usePredictions();
   const { user } = useAuth();
   const sb = getSupabaseBrowser();
+
+  // Normal brackets can only be started before the tournament kicks off; once
+  // the group stage finishes, the real R32 is known and second-chance brackets
+  // can be created instead.
+  const started = tournamentHasStarted(now);
+  const r32Ready = realRound32(now, isPreview) !== null;
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -42,9 +51,14 @@ export function BracketSwitcher() {
     if (rec) void upsertBracket(sb, user.id, rec);
   };
 
-  const handleCreate = () => {
-    const id = createBracket();
-    if (id) pushServer(id); // new bracket also synced via active-change, this is belt-and-braces
+  const handleCreate = (kind?: "second_chance") => {
+    const id = createBracket(
+      kind === "second_chance" ? { name: "Second Chance", kind: "second_chance" } : undefined,
+    );
+    if (id) {
+      pushServer(id); // new bracket also synced via active-change, this is belt-and-braces
+      setOpen(false);
+    }
   };
   const handleDuplicate = (id: string) => {
     const newId = duplicateBracket(id);
@@ -142,16 +156,35 @@ export function BracketSwitcher() {
               </div>
             ))}
           </div>
-          <button
-            onClick={handleCreate}
-            disabled={atCap}
-            className="flex w-full items-center justify-between border-t border-slate-200 px-3 py-2 text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/5 disabled:opacity-40 dark:border-slate-700"
-          >
-            <span>+ New bracket</span>
-            <span className="text-[11px] tabular-nums text-slate-400">
-              {brackets.length}/{MAX_BRACKETS}
-            </span>
-          </button>
+          <div className="border-t border-slate-200 dark:border-slate-700">
+            {!started && (
+              <button
+                onClick={() => handleCreate()}
+                disabled={atCap}
+                className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/5 disabled:opacity-40"
+              >
+                <span>+ New bracket</span>
+              </button>
+            )}
+            {r32Ready && (
+              <button
+                onClick={() => handleCreate("second_chance")}
+                disabled={atCap}
+                className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/5 disabled:opacity-40"
+              >
+                <span>🔄 New second-chance bracket</span>
+              </button>
+            )}
+            {started && !r32Ready && (
+              <p className="px-3 py-2 text-[11px] text-slate-400">
+                New brackets lock once matches begin — second-chance brackets open after the
+                group stage.
+              </p>
+            )}
+            <p className="px-3 pb-2 pt-0.5 text-[11px] tabular-nums text-slate-400">
+              {brackets.length}/{MAX_BRACKETS} brackets used{atCap ? " — limit reached" : ""}
+            </p>
+          </div>
         </div>
       )}
     </div>
