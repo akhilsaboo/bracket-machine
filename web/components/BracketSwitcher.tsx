@@ -5,7 +5,7 @@ import { usePredictions, MAX_BRACKETS } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { deleteBracketRow, upsertBracket } from "@/lib/brackets";
-import { realRound32, tournamentHasStarted } from "@/lib/results";
+import { realRound32, isKnockoutStarted } from "@/lib/results";
 
 export function BracketSwitcher() {
   const {
@@ -24,10 +24,9 @@ export function BracketSwitcher() {
   const { user } = useAuth();
   const sb = getSupabaseBrowser();
 
-  // Normal brackets can only be started before the tournament kicks off; once
-  // the group stage finishes, the real R32 is known and second-chance brackets
-  // can be created instead.
-  const started = tournamentHasStarted(now);
+  // Normal brackets can be created right up until the group stage ends; after
+  // that they lock, and second-chance brackets (seeded from the real R32) open.
+  const groupStageOver = isKnockoutStarted(now);
   const r32Ready = realRound32(now, isPreview) !== null;
 
   const [open, setOpen] = useState(false);
@@ -157,7 +156,7 @@ export function BracketSwitcher() {
             ))}
           </div>
           <div className="border-t border-slate-200 dark:border-slate-700">
-            {!started && (
+            {!groupStageOver && (
               <button
                 onClick={() => handleCreate()}
                 disabled={atCap}
@@ -175,10 +174,10 @@ export function BracketSwitcher() {
                 <span>🔄 New second-chance bracket</span>
               </button>
             )}
-            {started && !r32Ready && (
+            {groupStageOver && !r32Ready && (
               <p className="px-3 py-2 text-[11px] text-slate-400">
-                New brackets lock once matches begin — second-chance brackets open after the
-                group stage.
+                New brackets lock once the group stage ends — second-chance brackets open as soon
+                as the Round of 32 is set.
               </p>
             )}
             <p className="px-3 pb-2 pt-0.5 text-[11px] tabular-nums text-slate-400">
