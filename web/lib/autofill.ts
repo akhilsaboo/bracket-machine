@@ -7,6 +7,7 @@ import { SCHEDULE, TEAM_BY_CODE } from "@/lib/data";
 import type { Team } from "@/lib/engine";
 import { round32 } from "@/lib/compute";
 import { KO_FEEDS } from "@/lib/knockout";
+import { legacyScore } from "@/lib/historicWC";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 
 export type FillModeId =
@@ -60,9 +61,9 @@ export const FILL_MODES: FillMode[] = [
     label: "The Statistical Purist",
     tagline: "Trust the numbers, ignore the heart.",
     description:
-      "Leans on rankings, Elo and odds. Never calls an upset unless the data demands it — the baseline everyone has to beat.",
+      "Leans on the FIFA rankings. Never calls an upset unless the gap demands it — the baseline everyone has to beat.",
     emoji: "🤓",
-    implemented: false,
+    implemented: true,
   },
   {
     id: "chaos_agent",
@@ -72,7 +73,7 @@ export const FILL_MODES: FillMode[] = [
     description:
       "Triggers upsets every round, targeting aging or drama-filled giants and sending dark-horse minnows deep.",
     emoji: "🃏",
-    implemented: false,
+    implemented: true,
   },
   {
     id: "patriot",
@@ -101,9 +102,9 @@ export const FILL_MODES: FillMode[] = [
     label: "The Vibe Archivist",
     tagline: "I like their jerseys.",
     description:
-      "For the non-fan: picks on cooler kits, better food, nicer flags. Gloriously unpredictable.",
+      "For the non-fan: a stable, gloriously arbitrary vibe ranking. (Flag/kit picker coming soon.)",
     emoji: "🎨",
-    implemented: false,
+    implemented: true,
   },
   {
     id: "nostalgist",
@@ -113,7 +114,7 @@ export const FILL_MODES: FillMode[] = [
     description:
       "Weighs World Cup legacy and trophies above current form. Football royalty advances.",
     emoji: "🏛️",
-    implemented: false,
+    implemented: true,
   },
 ];
 
@@ -142,40 +143,92 @@ const GROUP_FIXTURES = SCHEDULE.filter((f) => f.group && f.group.length === 1);
 const KO_ORDER = [89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104];
 
 const better = (a: Team, b: Team): Team => (a.fifaRank <= b.fifaRank ? a : b);
+type Line = { home: number; away: number };
 
 /**
- * Deterministic "chalk" scoreline: the better-ranked team wins, by a margin that
- * grows with the ranking gap. No draws — keeps it firmly on the favorites.
+ * A favorite-wins scoreline whose margin grows with the strength `gap`. When
+ * `allowDraw` and the gap is tiny, returns a level draw instead.
  */
-function chalkScore(home: Team, away: Team): { home: number; away: number } {
-  const gap = Math.abs(home.fifaRank - away.fifaRank);
-  let winnerGoals: number;
-  let loserGoals: number;
-  if (gap >= 30) [winnerGoals, loserGoals] = [3, 0];
-  else if (gap >= 15) [winnerGoals, loserGoals] = [2, 0];
-  else if (gap >= 5) [winnerGoals, loserGoals] = [2, 1];
-  else [winnerGoals, loserGoals] = [1, 0];
+function favoredScore(homeFavored: boolean, gap: number, allowDraw = false): Line {
+  if (allowDraw && gap <= 3) return { home: 1, away: 1 };
+  let w: number;
+  let l: number;
+  if (gap >= 30) [w, l] = [3, 0];
+  else if (gap >= 15) [w, l] = [2, 0];
+  else if (gap >= 5) [w, l] = [2, 1];
+  else [w, l] = [1, 0];
+  return homeFavored ? { home: w, away: l } : { home: l, away: w };
+}
 
-  // Lower fifaRank is better. Tie on rank → home edge.
-  const homeWins = home.fifaRank <= away.fifaRank;
-  return homeWins
-    ? { home: winnerGoals, away: loserGoals }
-    : { home: loserGoals, away: winnerGoals };
+/** Chalk: better FIFA rank wins, no draws. */
+function chalkScore(home: Team, away: Team): Line {
+  return favoredScore(home.fifaRank <= away.fifaRank, Math.abs(home.fifaRank - away.fifaRank));
 }
 
 // Weighted toward realistic low scorelines; tops out at 5 (per the spec).
 const GOAL_WEIGHTS = [0, 0, 0, 1, 1, 1, 2, 2, 3, 4, 5];
 const randomGoals = (): number => GOAL_WEIGHTS[Math.floor(Math.random() * GOAL_WEIGHTS.length)];
 
-/** Chaos: random plausible scoreline, random winner. */
-const chaosStrategy: FillStrategy = {
-  score: () => ({ home: randomGoals(), away: randomGoals() }),
-  pickWinner: (a, b) => (Math.random() < 0.5 ? a : b),
-};
+// Stable per-team "vibe" in 0..99 — openly arbitrary (not real aesthetic data).
+// Placeholder until the interactive flag/jersey picker lands (see task #7).
+function vibeScore(code: string): number {
+  let h = 0;
+  for (const c of code) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h % 100;
+}
 
 const STRATEGIES: Partial<Record<FillModeId, FillStrategy>> = {
+  // Chalk: pure FIFA rank, favorites win.
   chalk: { score: chalkScore, pickWinner: better },
-  chaos: chaosStrategy,
+
+  // Chaos: random plausible scoreline, coin-flip winner.
+  chaos: {
+    score: () => ({ home: randomGoals(), away: randomGoals() }),
+    pickWinner: (a, b) => (Math.random() < 0.5 ? a : b),
+  },
+
+  // Statistical Purist: rankings-driven, no upsets, but level teams can draw.
+  purist: {
+    score: (home, away) =>
+      favoredScore(
+        home.fifaRank <= away.fifaRank,
+        Math.abs(home.fifaRank - away.fifaRank),
+        true,
+      ),
+    pickWinner: better,
+  },
+
+  // Chaos Agent: the anti-chalk — the worse-ranked underdog advances, by slim
+  // upset margins.
+  chaos_agent: {
+    score: (home, away) => favoredScore(home.fifaRank > away.fifaRank, 8),
+    pickWinner: (a, b) => (a.fifaRank >= b.fifaRank ? a : b),
+  },
+
+  // Historic Nostalgist: World Cup legacy beats current form; ranking breaks ties.
+  nostalgist: {
+    score: (home, away) => {
+      const lh = legacyScore(home.code);
+      const la = legacyScore(away.code);
+      if (lh === la) return chalkScore(home, away);
+      const diff = Math.abs(lh - la);
+      const gap = diff >= 10 ? 30 : diff >= 4 ? 15 : 5;
+      return favoredScore(lh > la, gap);
+    },
+    pickWinner: (a, b) => {
+      const la = legacyScore(a.code);
+      const lb = legacyScore(b.code);
+      if (la === lb) return better(a, b);
+      return la > lb ? a : b;
+    },
+  },
+
+  // Vibe Archivist: stable per-team "vibe" decides everything. For fun only.
+  vibe: {
+    score: (home, away) =>
+      favoredScore(vibeScore(home.code) >= vibeScore(away.code), Math.abs(vibeScore(home.code) - vibeScore(away.code)) / 3),
+    pickWinner: (a, b) => (vibeScore(a.code) >= vibeScore(b.code) ? a : b),
+  },
 };
 
 const teamOf = (code: string): Team | undefined => TEAM_BY_CODE.get(code);
