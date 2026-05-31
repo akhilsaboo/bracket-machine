@@ -5,6 +5,7 @@ import { team, type Fixture } from "@/lib/data";
 import { flag } from "@/lib/flags";
 import { usePredictions } from "@/lib/predictions";
 import { gradeGroup, type GroupGrade, type GroupResult } from "@/lib/results";
+import { MatchInsightButton } from "./MatchInsight";
 
 function clampGoals(raw: string): number | null {
   if (raw === "") return null;
@@ -200,6 +201,7 @@ export function MatchRow({
         <span className="text-base leading-none">{flag(fixture.away)}</span>
         <span className="truncate">{away?.name ?? fixture.away}</span>
       </button>
+      <MatchInsightButton homeCode={fixture.home} awayCode={fixture.away} />
     </div>
   );
 }
