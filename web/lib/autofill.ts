@@ -82,7 +82,7 @@ export const FILL_MODES: FillMode[] = [
     label: "The Vibe Archivist",
     tagline: "I like their jerseys.",
     description:
-      "For the non-fan: judge a few kits head-to-head, and your favourite jerseys march to glory.",
+      "For the non-fan: judge a few flags head-to-head, and your favourite nations march to glory.",
     emoji: "🎨",
     implemented: true,
   },

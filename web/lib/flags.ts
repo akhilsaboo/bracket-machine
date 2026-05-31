@@ -32,3 +32,15 @@ export function flag(code: string): string {
   if (iso2.startsWith("_")) return SUBDIVISION[iso2] ?? "\u{1F3F3}️";
   return regionalIndicator(iso2);
 }
+
+// Current official flag SVGs from flagcdn (https://flagcdn.com), keyed by
+// ISO 3166-1 alpha-2 — plus GB subdivisions for England/Scotland.
+const FLAGCDN_SUBDIVISION: Record<string, string> = { _ENG: "gb-eng", _SCO: "gb-sct" };
+
+/** URL of the team's current flag as an SVG, or "" if unknown. */
+export function flagImg(code: string): string {
+  const iso2 = ISO2[code];
+  if (!iso2) return "";
+  const cdn = iso2.startsWith("_") ? FLAGCDN_SUBDIVISION[iso2] : iso2.toLowerCase();
+  return cdn ? `https://flagcdn.com/${cdn}.svg` : "";
+}

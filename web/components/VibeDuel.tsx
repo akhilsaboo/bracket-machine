@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { TEAMS } from "@/lib/data";
 import { flag } from "@/lib/flags";
-import { JerseySvg } from "./JerseySvg";
+import { FlagSvg } from "./FlagSvg";
 
 /** code -> net preference (wins minus losses) from the duel. */
 export type VibeRanking = Record<string, number>;
@@ -65,12 +65,12 @@ export function VibeDuel({
         </span>
       </div>
 
-      <p className="mb-4 text-center text-sm font-bold">Which kit looks cooler?</p>
+      <p className="mb-4 text-center text-sm font-bold">Which flag looks cooler?</p>
 
       <div className="flex items-stretch gap-3">
-        <JerseyChoice code={left} onClick={() => choose(left, right)} />
+        <FlagChoice code={left} onClick={() => choose(left, right)} />
         <div className="flex items-center text-xs font-bold text-slate-400">vs</div>
-        <JerseyChoice code={right} onClick={() => choose(right, left)} />
+        <FlagChoice code={right} onClick={() => choose(right, left)} />
       </div>
 
       <button
@@ -83,13 +83,16 @@ export function VibeDuel({
   );
 }
 
-function JerseyChoice({ code, onClick }: { code: string; onClick: () => void }) {
+function FlagChoice({ code, onClick }: { code: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-1 flex-col items-center gap-1 rounded-xl border border-slate-200 p-3 transition hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
+      className="flex flex-1 flex-col items-center gap-2 rounded-xl border border-slate-200 p-3 transition hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
     >
-      <JerseySvg code={code} className="h-24 w-24" />
+      <FlagSvg
+        code={code}
+        className="h-20 w-28 rounded object-cover shadow-sm ring-1 ring-black/10"
+      />
       <span className="text-sm font-semibold">
         {flag(code)} {nameOf(code)}
       </span>
