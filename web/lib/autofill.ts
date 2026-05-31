@@ -148,6 +148,10 @@ function chalkScore(home: Team, away: Team): Line {
   return favoredScore(home.fifaRank <= away.fifaRank, Math.abs(home.fifaRank - away.fifaRank));
 }
 
+// Weighted toward realistic low scorelines; tops out at 5 (per the spec).
+const GOAL_WEIGHTS = [0, 0, 0, 1, 1, 1, 2, 2, 3, 4, 5];
+const randomGoals = (): number => GOAL_WEIGHTS[Math.floor(Math.random() * GOAL_WEIGHTS.length)];
+
 // Stable per-team "vibe" in 0..99 — the fallback ordering for teams the user
 // didn't judge in the jersey duel. Openly arbitrary (not real aesthetic data).
 function vibeScore(code: string): number {
@@ -188,11 +192,21 @@ const STRATEGIES: Partial<Record<FillModeId, FillStrategy>> = {
     pickWinner: better,
   },
 
-  // Chaos Agent: the anti-chalk — the worse-ranked underdog advances, by slim
-  // upset margins.
+  // Chaos Agent: genuinely random every run, but heavily upset-biased — the
+  // worse-ranked underdog gets a goal boost and wins knockout ties ~70% of the
+  // time. Different wild bracket each time you pick it.
   chaos_agent: {
-    score: (home, away) => favoredScore(home.fifaRank > away.fifaRank, 8),
-    pickWinner: (a, b) => (a.fifaRank >= b.fifaRank ? a : b),
+    score: (home, away) => {
+      const homeUnder = home.fifaRank > away.fifaRank;
+      const h = randomGoals() + (homeUnder ? 1 : 0);
+      const a = randomGoals() + (homeUnder ? 0 : 1);
+      return { home: Math.min(h, 5), away: Math.min(a, 5) };
+    },
+    pickWinner: (a, b) => {
+      const underdog = a.fifaRank >= b.fifaRank ? a : b;
+      const favorite = underdog === a ? b : a;
+      return Math.random() < 0.7 ? underdog : favorite;
+    },
   },
 
   // Historic Nostalgist: World Cup legacy beats current form; ranking breaks ties.
