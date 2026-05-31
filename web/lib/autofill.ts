@@ -50,9 +50,9 @@ export const FILL_MODES: FillMode[] = [
     kind: "quick",
     label: "Chaos",
     tagline: "Roll the dice.",
-    description: "Random but plausible scorelines and winners across the whole group stage.",
+    description: "Random but plausible scorelines and winners across the whole bracket.",
     emoji: "🎲",
-    implemented: false,
+    implemented: true,
   },
   {
     id: "purist",
@@ -163,8 +163,19 @@ function chalkScore(home: Team, away: Team): { home: number; away: number } {
     : { home: loserGoals, away: winnerGoals };
 }
 
+// Weighted toward realistic low scorelines; tops out at 5 (per the spec).
+const GOAL_WEIGHTS = [0, 0, 0, 1, 1, 1, 2, 2, 3, 4, 5];
+const randomGoals = (): number => GOAL_WEIGHTS[Math.floor(Math.random() * GOAL_WEIGHTS.length)];
+
+/** Chaos: random plausible scoreline, random winner. */
+const chaosStrategy: FillStrategy = {
+  score: () => ({ home: randomGoals(), away: randomGoals() }),
+  pickWinner: (a, b) => (Math.random() < 0.5 ? a : b),
+};
+
 const STRATEGIES: Partial<Record<FillModeId, FillStrategy>> = {
   chalk: { score: chalkScore, pickWinner: better },
+  chaos: chaosStrategy,
 };
 
 const teamOf = (code: string): Team | undefined => TEAM_BY_CODE.get(code);
