@@ -84,7 +84,7 @@ export const FILL_MODES: FillMode[] = [
       "Pick your nation and they win every single match, logic be damned. Pure fan-fiction hope.",
     emoji: "🏆",
     needsNation: true,
-    implemented: false,
+    implemented: true,
   },
   {
     id: "fifa_gamer",
@@ -185,6 +185,21 @@ const STRATEGIES: Partial<Record<FillModeId, FillStrategy>> = {
   chaos: {
     score: () => ({ home: randomGoals(), away: randomGoals() }),
     pickWinner: (a, b) => (Math.random() < 0.5 ? a : b),
+  },
+
+  // Overconfident Patriot: the chosen nation wins every match it plays; all other
+  // ties fall back to chalk.
+  patriot: {
+    score: (home, away, opts) => {
+      if (opts.nation === home.code) return { home: 3, away: 0 };
+      if (opts.nation === away.code) return { home: 0, away: 3 };
+      return chalkScore(home, away);
+    },
+    pickWinner: (a, b, opts) => {
+      if (opts.nation === a.code) return a;
+      if (opts.nation === b.code) return b;
+      return better(a, b);
+    },
   },
 
   // Statistical Purist: rankings-driven, no upsets, but level teams can draw.
