@@ -5,7 +5,6 @@ import { FILL_MODES, type FillMode, type FillModeId, type FillOptions } from "@/
 import { TEAMS } from "@/lib/data";
 import { flag } from "@/lib/flags";
 
-const QUICK = FILL_MODES.filter((m) => m.kind === "quick");
 const PERSONAS = FILL_MODES.filter((m) => m.kind === "persona");
 const TEAMS_BY_NAME = [...TEAMS].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -17,7 +16,6 @@ interface Props {
 }
 
 export function AutoFillModal({ onApply, onClose }: Props) {
-  const [step, setStep] = useState<"home" | "personas">("home");
   // A persona awaiting its required nation choice (Overconfident Patriot).
   const [pendingNation, setPendingNation] = useState<FillMode | null>(null);
 
@@ -38,9 +36,9 @@ export function AutoFillModal({ onApply, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="brand-gradient px-6 py-5 text-white">
-          <div className="text-lg font-extrabold">⚡ Fill your bracket fast</div>
+          <div className="text-lg font-extrabold">⚡ Pick an AI persona</div>
           <p className="text-xs text-white/80">
-            Pick a starting point — you can tweak every score afterward.
+            Let a character with opinions fill your bracket — you can tweak every score afterward.
           </p>
         </div>
 
@@ -50,71 +48,23 @@ export function AutoFillModal({ onApply, onClose }: Props) {
             onConfirm={(nation) => onApply(pendingNation.id, { nation })}
             onBack={() => setPendingNation(null)}
           />
-        ) : step === "home" ? (
-          <div className="space-y-3 p-5">
-            {QUICK.map((m) => (
-              <ModeButton key={m.id} mode={m} onPick={() => onApply(m.id, {})} />
-            ))}
-            <button
-              onClick={() => setStep("personas")}
-              className="flex w-full items-center justify-between rounded-xl border border-[var(--wc-accent)]/30 bg-[var(--wc-accent)]/5 px-4 py-3 text-left transition hover:bg-[var(--wc-accent)]/10"
-            >
-              <span>
-                <span className="block text-sm font-bold">🤖 Pick an AI persona</span>
-                <span className="block text-xs text-slate-500 dark:text-slate-400">
-                  Let a character with opinions fill it for you
-                </span>
-              </span>
-              <span className="text-[var(--wc-accent)]">→</span>
-            </button>
-
-            <button
-              onClick={onClose}
-              className="mt-1 w-full py-2 text-center text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-            >
-              No thanks — I'll pick myself
-            </button>
-          </div>
         ) : (
           <div className="p-5">
-            <button
-              onClick={() => setStep("home")}
-              className="mb-3 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-            >
-              ← Back
-            </button>
             <div className="grid max-h-[55vh] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
               {PERSONAS.map((m) => (
                 <PersonaCard key={m.id} mode={m} onPick={() => pickPersona(m)} />
               ))}
             </div>
+            <button
+              onClick={onClose}
+              className="mt-3 w-full py-2 text-center text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              No thanks — I'll pick myself
+            </button>
           </div>
         )}
       </div>
     </div>
-  );
-}
-
-function ModeButton({ mode, onPick }: { mode: FillMode; onPick: () => void }) {
-  const disabled = !mode.implemented;
-  return (
-    <button
-      onClick={onPick}
-      disabled={disabled}
-      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
-        disabled
-          ? "cursor-not-allowed border-slate-200 opacity-60 dark:border-slate-700"
-          : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
-      }`}
-    >
-      <span>
-        <span className="block text-sm font-bold">
-          {mode.emoji} {mode.label}
-        </span>
-        <span className="block text-xs text-slate-500 dark:text-slate-400">{mode.tagline}</span>
-      </span>
-      {disabled && <ComingSoon />}
-    </button>
   );
 }
 

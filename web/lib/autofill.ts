@@ -11,8 +11,6 @@ import { legacyScore } from "@/lib/historicWC";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 
 export type FillModeId =
-  | "chalk"
-  | "chaos"
   | "purist"
   | "chaos_agent"
   | "patriot"
@@ -35,26 +33,8 @@ export interface FillMode {
   implemented: boolean;
 }
 
-// Order matters for display. Quick picks first, then the 6 AI personas.
+// Order matters for display. The 6 AI personas.
 export const FILL_MODES: FillMode[] = [
-  {
-    id: "chalk",
-    kind: "quick",
-    label: "Chalk",
-    tagline: "Favorites all the way.",
-    description: "Higher FIFA-ranked team wins every match. The safe, by-the-book bracket.",
-    emoji: "📊",
-    implemented: true,
-  },
-  {
-    id: "chaos",
-    kind: "quick",
-    label: "Chaos",
-    tagline: "Roll the dice.",
-    description: "Random but plausible scorelines and winners across the whole bracket.",
-    emoji: "🎲",
-    implemented: true,
-  },
   {
     id: "purist",
     kind: "persona",
@@ -165,10 +145,6 @@ function chalkScore(home: Team, away: Team): Line {
   return favoredScore(home.fifaRank <= away.fifaRank, Math.abs(home.fifaRank - away.fifaRank));
 }
 
-// Weighted toward realistic low scorelines; tops out at 5 (per the spec).
-const GOAL_WEIGHTS = [0, 0, 0, 1, 1, 1, 2, 2, 3, 4, 5];
-const randomGoals = (): number => GOAL_WEIGHTS[Math.floor(Math.random() * GOAL_WEIGHTS.length)];
-
 // Stable per-team "vibe" in 0..99 — openly arbitrary (not real aesthetic data).
 // Placeholder until the interactive flag/jersey picker lands (see task #7).
 function vibeScore(code: string): number {
@@ -178,15 +154,6 @@ function vibeScore(code: string): number {
 }
 
 const STRATEGIES: Partial<Record<FillModeId, FillStrategy>> = {
-  // Chalk: pure FIFA rank, favorites win.
-  chalk: { score: chalkScore, pickWinner: better },
-
-  // Chaos: random plausible scoreline, coin-flip winner.
-  chaos: {
-    score: () => ({ home: randomGoals(), away: randomGoals() }),
-    pickWinner: (a, b) => (Math.random() < 0.5 ? a : b),
-  },
-
   // Overconfident Patriot: the chosen nation wins every match it plays; all other
   // ties fall back to chalk.
   patriot: {
