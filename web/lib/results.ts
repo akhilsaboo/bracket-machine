@@ -105,12 +105,31 @@ export function isKnockoutStarted(now: Date): boolean {
 // wired (task #12) the same shape gets populated from the API.
 
 import { SCHEDULE } from "@/lib/data";
+import { round32, type ResolvedFixture } from "@/lib/compute";
 import { resolveKnockout } from "@/lib/knockout";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 
 export interface TournamentTruth {
   groupResults: Record<string, GroupResult>; // by fixture id
   knockoutWinners: Record<number, string>; // by match no -> team code
+}
+
+/**
+ * The REAL Round of 32 (16 fixtures with both teams resolved) once the group
+ * stage is complete — the seed for second-chance brackets. Returns null until a
+ * real result feed exists. In preview mode it's derived from the mock tournament
+ * so the feature is testable; in normal mode it's null (no fabricated teams —
+ * `mockGroupResult` is date-driven and would otherwise invent results once the
+ * real calendar passes the group stage). Swap this body for the live feed later.
+ */
+export function realRound32(now: Date, isPreview: boolean): ResolvedFixture[] | null {
+  if (!isPreview) return null;
+  const truth = buildMockTournament(now);
+  const pred: Predictions = {};
+  for (const [id, r] of Object.entries(truth.groupResults)) {
+    pred[id] = { home: r.homeGoals, away: r.awayGoals };
+  }
+  return round32(pred); // null until all 12 groups are decided
 }
 
 /** Construct a deterministic mock-tournament outcome for preview / demo use. */

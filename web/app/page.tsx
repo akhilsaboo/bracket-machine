@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SCHEDULE } from "@/lib/data";
 import { usePredictions } from "@/lib/predictions";
+import { realRound32 } from "@/lib/results";
 import { GroupStageView } from "@/components/GroupStageView";
 import { ScheduleView } from "@/components/ScheduleView";
 import { BracketView } from "@/components/BracketView";
@@ -22,12 +23,30 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("group");
-  const { predictions, reset, hydrated } = usePredictions();
+  const { predictions, reset, hydrated, activeKind, isPreview, now, createBracket, switchBracket } =
+    usePredictions();
 
   const predicted = SCHEDULE.filter((f) => {
     const s = predictions[f.id];
     return s && s.home !== null && s.away !== null;
   }).length;
+
+  const isSecondChance = activeKind === "second_chance";
+  // Group tab is irrelevant for a knockout-only second-chance bracket.
+  const tabs = TABS.filter((t) => !(isSecondChance && t.id === "group"));
+  const effectiveTab: Tab = isSecondChance && tab === "group" ? "bracket" : tab;
+
+  // The real R32 is known (group stage over). Offer a second-chance bracket.
+  const r32Ready = realRound32(now, isPreview) !== null;
+  const showSCBanner = r32Ready && !isSecondChance;
+
+  const startSecondChance = () => {
+    const id = createBracket({ name: "Second Chance", kind: "second_chance" });
+    if (id) {
+      switchBracket(id);
+      setTab("bracket");
+    }
+  };
 
   return (
     <div className="flex min-h-full flex-col">
@@ -57,12 +76,12 @@ export default function Home() {
         </div>
 
         <nav className="mx-auto flex max-w-6xl gap-1 px-4">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`-mb-px rounded-t-lg px-4 py-2 text-sm font-semibold transition ${
-                tab === t.id
+                effectiveTab === t.id
                   ? "bg-[var(--background)] text-[var(--wc-accent)]"
                   : "text-white/80 hover:bg-white/10"
               }`}
@@ -76,10 +95,24 @@ export default function Home() {
       <BracketSync />
       <PoolJoinHandler onJoined={() => setTab("pools")} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-        {tab === "group" && <GroupStageView onSubmitted={() => setTab("bracket")} />}
-        {tab === "schedule" && <ScheduleView />}
-        {tab === "bracket" && <BracketView />}
-        {tab === "pools" && <PoolsView />}
+        {showSCBanner && (
+          <button
+            onClick={startSecondChance}
+            className="mb-5 flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--wc-accent)]/30 bg-[var(--wc-accent)]/5 px-4 py-3 text-left transition hover:bg-[var(--wc-accent)]/10"
+          >
+            <span>
+              <span className="block text-sm font-bold">🔄 Group stage is done — try a Second-Chance bracket</span>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                Start fresh from the real Round of 32 and fill out a knockout-only bracket.
+              </span>
+            </span>
+            <span className="shrink-0 text-[var(--wc-accent)]">→</span>
+          </button>
+        )}
+        {effectiveTab === "group" && <GroupStageView onSubmitted={() => setTab("bracket")} />}
+        {effectiveTab === "schedule" && <ScheduleView />}
+        {effectiveTab === "bracket" && <BracketView />}
+        {effectiveTab === "pools" && <PoolsView />}
       </main>
     </div>
   );

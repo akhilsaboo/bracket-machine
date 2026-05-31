@@ -4,11 +4,11 @@ import { useState } from "react";
 import { gd, points } from "@/lib/engine";
 import { GROUP_IDS } from "@/lib/data";
 import { allGroupsComplete, groupIsComplete, thirdPlaceRanking } from "@/lib/compute";
-import { BRACKET_LAYOUT, champion, resolveKnockout } from "@/lib/knockout";
+import { champion, resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/lib/knockout";
 import { flag } from "@/lib/flags";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
-import { mockKnockoutWinner, type KnockoutResult } from "@/lib/results";
+import { mockKnockoutWinner, realRound32, type KnockoutResult } from "@/lib/results";
 import { BracketTree } from "./BracketTree";
 
 export function BracketView() {
@@ -21,6 +21,8 @@ export function BracketView() {
     tiebreakerGoals,
     setTiebreakerGoals,
     isPreview,
+    now,
+    activeKind,
   } = usePredictions();
   const { user, requestSignIn } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
@@ -28,19 +30,40 @@ export function BracketView() {
     tiebreakerGoals === null ? "" : String(tiebreakerGoals),
   );
 
-  if (!allGroupsComplete(predictions)) {
-    const done = GROUP_IDS.filter((g) => groupIsComplete(g, predictions)).length;
-    return (
-      <div className="mx-auto max-w-md rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-          Predict all 12 groups to generate your bracket.
-        </p>
-        <p className="mt-1 text-xs text-slate-400">{done}/12 groups complete</p>
-      </div>
-    );
+  const isSecondChance = activeKind === "second_chance";
+
+  let resolved: Map<number, KOMatch>;
+  if (isSecondChance) {
+    const r32 = realRound32(now, isPreview);
+    if (!r32) {
+      return (
+        <div className="mx-auto max-w-md rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+            🔄 Second-chance bracket
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Its Round of 32 fills in with the real qualified teams once the group stage
+            finishes. Check back then!
+          </p>
+        </div>
+      );
+    }
+    resolved = resolveKnockoutFrom(r32, knockout);
+  } else {
+    if (!allGroupsComplete(predictions)) {
+      const done = GROUP_IDS.filter((g) => groupIsComplete(g, predictions)).length;
+      return (
+        <div className="mx-auto max-w-md rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+            Predict all 12 groups to generate your bracket.
+          </p>
+          <p className="mt-1 text-xs text-slate-400">{done}/12 groups complete</p>
+        </div>
+      );
+    }
+    resolved = resolveKnockout(predictions, knockout)!;
   }
 
-  const resolved = resolveKnockout(predictions, knockout)!;
   const onPick = (match: number, code: string) => setKnockoutWinner(match, code);
 
   // Mock results when previewing; future: live results from a data source.
@@ -52,7 +75,7 @@ export function BracketView() {
   };
 
   const champ = champion(resolved);
-  const thirds = thirdPlaceRanking(predictions);
+  const thirds = isSecondChance ? [] : thirdPlaceRanking(predictions);
   const canSubmit = !!champ && !bracketSubmitted;
 
   const confirmSubmit = () => {
@@ -97,6 +120,7 @@ export function BracketView() {
         </div>
       )}
 
+      {!isSecondChance && (
       <section>
         <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
           Best third-placed teams (8 advance)
@@ -121,6 +145,7 @@ export function BracketView() {
           ))}
         </div>
       </section>
+      )}
 
       {modalOpen && champ && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">

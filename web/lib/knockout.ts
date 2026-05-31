@@ -3,7 +3,7 @@
 // Later rounds are filled by the user's click-picks (knockoutWinners).
 
 import type { Team } from "@/lib/engine";
-import { round32 } from "@/lib/compute";
+import { round32, type ResolvedFixture } from "@/lib/compute";
 import type { Predictions } from "@/lib/predictions";
 
 export type KnockoutWinners = Record<string, string>; // matchNo -> team code
@@ -41,7 +41,15 @@ export function resolveKnockout(
 ): Map<number, KOMatch> | null {
   const r32 = round32(predictions);
   if (!r32) return null;
+  return resolveKnockoutFrom(r32, winners);
+}
 
+/** Resolve the knockout tree from a fixed Round of 32 (e.g. the real R32 for a
+ *  second-chance bracket) plus the user's winner picks. */
+export function resolveKnockoutFrom(
+  r32: ResolvedFixture[],
+  winners: KnockoutWinners,
+): Map<number, KOMatch> {
   const resolved = new Map<number, KOMatch>();
 
   const pickWinner = (m: number, home: Team | null, away: Team | null): Team | null => {
