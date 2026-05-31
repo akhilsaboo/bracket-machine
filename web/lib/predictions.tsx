@@ -39,6 +39,8 @@ interface PredictionContextValue {
   /** Bulk-merge scorelines (used by auto-fill). Leaves knockout/awards untouched. */
   setManyScores: (scores: Predictions) => void;
   setKnockoutWinner: (match: number | string, code: string) => void;
+  /** Bulk-merge knockout winners (used by auto-fill). */
+  setManyKnockout: (winners: KnockoutWinners) => void;
   setAward: (key: string, teamCode: string | null) => void;
   setGroupSubmitted: (v: boolean) => void;
   setBracketSubmitted: (v: boolean) => void;
@@ -147,6 +149,10 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setManyKnockout = useCallback((winners: KnockoutWinners) => {
+    setKnockout((prev) => ({ ...prev, ...winners }));
+  }, []);
+
   const setAward = useCallback((key: string, teamCode: string | null) => {
     setAwards((prev) => {
       if (teamCode === null) {
@@ -191,6 +197,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
         setScore,
         setManyScores,
         setKnockoutWinner,
+        setManyKnockout,
         setAward,
         setGroupSubmitted,
         setBracketSubmitted,

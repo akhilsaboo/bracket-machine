@@ -5,14 +5,19 @@ import { GROUP_IDS } from "@/lib/data";
 import { allGroupsComplete } from "@/lib/compute";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
-import { buildGroupPredictions, type FillModeId, type FillOptions } from "@/lib/autofill";
+import {
+  buildGroupPredictions,
+  buildKnockoutWinners,
+  type FillModeId,
+  type FillOptions,
+} from "@/lib/autofill";
 import { GroupCard } from "./GroupCard";
 import { AutoFillModal } from "./AutoFillModal";
 
 const AUTOFILL_SEEN_KEY = "wc2026-autofill-seen";
 
 export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
-  const { predictions, setManyScores, groupSubmitted, setGroupSubmitted, hydrated } =
+  const { predictions, setManyScores, setManyKnockout, groupSubmitted, setGroupSubmitted, hydrated } =
     usePredictions();
   const { user, requestSignIn } = useAuth();
   const complete = allGroupsComplete(predictions);
@@ -34,7 +39,11 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
   };
 
   const applyAutoFill = (mode: FillModeId, opts: FillOptions) => {
-    setManyScores(buildGroupPredictions(mode, opts));
+    const groupScores = buildGroupPredictions(mode, opts);
+    setManyScores(groupScores);
+    // Knockout winners resolve from the just-filled standings, so merge the new
+    // scores in before walking the bracket.
+    setManyKnockout(buildKnockoutWinners(mode, { ...predictions, ...groupScores }, opts));
     dismissAutoFill();
   };
   // MODULAR: this initial-only "Submit Group Stage" gate is easy to remove —

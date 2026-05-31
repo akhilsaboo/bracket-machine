@@ -4,7 +4,10 @@
 // client-side — no backend, no real LLM call (personas are branded heuristics).
 
 import { SCHEDULE, TEAM_BY_CODE } from "@/lib/data";
-import type { Predictions } from "@/lib/predictions";
+import type { Team } from "@/lib/engine";
+import { round32 } from "@/lib/compute";
+import { KO_FEEDS } from "@/lib/knockout";
+import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 
 export type FillModeId =
   | "chalk"
@@ -123,22 +126,29 @@ export interface FillOptions {
   nation?: string;
 }
 
-// All group-stage fixtures (matchday 1–3, real schedule has `group` set).
-const GROUP_FIXTURES = SCHEDULE.filter((f) => f.group && f.group.length === 1);
-
-function rankOf(code: string): number {
-  return TEAM_BY_CODE.get(code)?.fifaRank ?? 999;
+/**
+ * A persona/mode = a strategy. `score` picks a group-stage scoreline; `pickWinner`
+ * picks the winner of a knockout tie. Adding a persona means adding a strategy
+ * here and flipping its `implemented` flag above. (Deterministic, client-side —
+ * see feedback_persona_engine_decision.)
+ */
+export interface FillStrategy {
+  score: (home: Team, away: Team, opts: FillOptions) => { home: number; away: number };
+  pickWinner: (a: Team, b: Team, opts: FillOptions) => Team;
 }
+
+// All group-stage fixtures (single-letter group; knockout fixtures have none).
+const GROUP_FIXTURES = SCHEDULE.filter((f) => f.group && f.group.length === 1);
+const KO_ORDER = [89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104];
+
+const better = (a: Team, b: Team): Team => (a.fifaRank <= b.fifaRank ? a : b);
 
 /**
  * Deterministic "chalk" scoreline: the better-ranked team wins, by a margin that
  * grows with the ranking gap. No draws — keeps it firmly on the favorites.
  */
-function chalkScore(homeCode: string, awayCode: string): { home: number; away: number } {
-  const homeRank = rankOf(homeCode);
-  const awayRank = rankOf(awayCode);
-  const gap = Math.abs(homeRank - awayRank);
-
+function chalkScore(home: Team, away: Team): { home: number; away: number } {
+  const gap = Math.abs(home.fifaRank - away.fifaRank);
   let winnerGoals: number;
   let loserGoals: number;
   if (gap >= 30) [winnerGoals, loserGoals] = [3, 0];
@@ -147,25 +157,65 @@ function chalkScore(homeCode: string, awayCode: string): { home: number; away: n
   else [winnerGoals, loserGoals] = [1, 0];
 
   // Lower fifaRank is better. Tie on rank → home edge.
-  const homeWins = homeRank <= awayRank;
+  const homeWins = home.fifaRank <= away.fifaRank;
   return homeWins
     ? { home: winnerGoals, away: loserGoals }
     : { home: loserGoals, away: winnerGoals };
 }
 
+const STRATEGIES: Partial<Record<FillModeId, FillStrategy>> = {
+  chalk: { score: chalkScore, pickWinner: better },
+};
+
+const teamOf = (code: string): Team | undefined => TEAM_BY_CODE.get(code);
+
 /**
- * Build the full set of group-stage scorelines for a mode. Only `chalk` is wired
- * today; other modes throw so the UI can keep them in a "coming soon" state.
+ * Build the full set of group-stage scorelines for a mode. Throws for modes whose
+ * strategy isn't wired yet so the UI can keep them in a "coming soon" state.
  */
-export function buildGroupPredictions(mode: FillModeId, _opts: FillOptions = {}): Predictions {
+export function buildGroupPredictions(mode: FillModeId, opts: FillOptions = {}): Predictions {
+  const strat = STRATEGIES[mode];
+  if (!strat) throw new Error(`Auto-fill mode "${mode}" is not implemented yet`);
   const out: Predictions = {};
-  switch (mode) {
-    case "chalk":
-      for (const f of GROUP_FIXTURES) {
-        out[f.id] = chalkScore(f.home, f.away);
-      }
-      return out;
-    default:
-      throw new Error(`Auto-fill mode "${mode}" is not implemented yet`);
+  for (const f of GROUP_FIXTURES) {
+    const home = teamOf(f.home);
+    const away = teamOf(f.away);
+    if (home && away) out[f.id] = strat.score(home, away, opts);
   }
+  return out;
+}
+
+/**
+ * Walk the knockout tree, picking each tie with the mode's strategy. Needs a
+ * complete group stage (round32 resolves from standings); returns {} otherwise.
+ */
+export function buildKnockoutWinners(
+  mode: FillModeId,
+  predictions: Predictions,
+  opts: FillOptions = {},
+): KnockoutWinners {
+  const strat = STRATEGIES[mode];
+  if (!strat) return {};
+  const r32 = round32(predictions);
+  if (!r32) return {};
+
+  const winners: KnockoutWinners = {};
+  const winnerOf = new Map<number, Team>();
+  const loserOf = new Map<number, Team>();
+
+  const decide = (m: number, home: Team | null, away: Team | null) => {
+    if (!home || !away) return;
+    const w = strat.pickWinner(home, away, opts);
+    winners[String(m)] = w.code;
+    winnerOf.set(m, w);
+    loserOf.set(m, w.code === home.code ? away : home);
+  };
+
+  for (const fx of r32) decide(fx.match, fx.home, fx.away);
+  for (const m of KO_ORDER) {
+    const [fh, fa] = KO_FEEDS[m];
+    const pool = m === 103 ? loserOf : winnerOf;
+    decide(m, pool.get(fh) ?? null, pool.get(fa) ?? null);
+  }
+  return winners;
 }
