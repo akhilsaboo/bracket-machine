@@ -8,6 +8,7 @@ import type { Team } from "@/lib/engine";
 import { round32 } from "@/lib/compute";
 import { KO_FEEDS } from "@/lib/knockout";
 import { legacyScore } from "@/lib/historicWC";
+import { starPowerOf } from "@/lib/starPower";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 
 export type FillModeId =
@@ -72,9 +73,9 @@ export const FILL_MODES: FillMode[] = [
     label: "The FIFA Gamer",
     tagline: "They've got 90 pace on Ultimate Team.",
     description:
-      "Ranks teams by star-player ratings and hype, not tactics. Loves the flashy superstar squads.",
+      "Ranks teams by star-player firepower, not tactics. The flashy superstar squads go far.",
     emoji: "🎮",
-    implemented: false,
+    implemented: true,
   },
   {
     id: "vibe",
@@ -209,6 +210,22 @@ const STRATEGIES: Partial<Record<FillModeId, FillStrategy>> = {
       const lb = legacyScore(b.code);
       if (la === lb) return better(a, b);
       return la > lb ? a : b;
+    },
+  },
+
+  // FIFA Gamer: highest star-power squad wins; ranking breaks ties. Flashy
+  // superstar sides advance regardless of team cohesion.
+  fifa_gamer: {
+    score: (home, away) =>
+      favoredScore(
+        starPowerOf(home.code) >= starPowerOf(away.code),
+        Math.abs(starPowerOf(home.code) - starPowerOf(away.code)),
+      ),
+    pickWinner: (a, b) => {
+      const sa = starPowerOf(a.code);
+      const sb = starPowerOf(b.code);
+      if (sa === sb) return better(a, b);
+      return sa > sb ? a : b;
     },
   },
 
