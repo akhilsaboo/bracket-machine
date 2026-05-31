@@ -17,8 +17,7 @@ import { AutoFillModal } from "./AutoFillModal";
 const AUTOFILL_SEEN_KEY = "wc2026-autofill-seen";
 
 export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
-  const { predictions, setManyScores, setManyKnockout, groupSubmitted, setGroupSubmitted, hydrated } =
-    usePredictions();
+  const { predictions, setManyScores, setManyKnockout, hydrated } = usePredictions();
   const { user, requestSignIn } = useAuth();
   const complete = allGroupsComplete(predictions);
 
@@ -46,19 +45,6 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
     setManyKnockout(buildKnockoutWinners(mode, { ...predictions, ...groupScores }, opts));
     dismissAutoFill();
   };
-  // MODULAR: this initial-only "Submit Group Stage" gate is easy to remove —
-  // delete the block below and the GroupStageView call-site's onSubmitted prop.
-  const showSubmit = complete && !groupSubmitted;
-
-  const handleSubmit = () => {
-    if (!user) {
-      requestSignIn();
-      return;
-    }
-    setGroupSubmitted(true);
-    onSubmitted?.();
-  };
-
   return (
     <div className="space-y-6">
       {showAutoFill && <AutoFillModal onApply={applyAutoFill} onClose={dismissAutoFill} />}
@@ -77,18 +63,21 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
           <GroupCard key={g} group={g} />
         ))}
       </div>
-      {showSubmit && (
+      {complete && (
         <div className="sticky bottom-4 flex flex-col items-center gap-1">
           <button
-            onClick={handleSubmit}
+            onClick={() => onSubmitted?.()}
             className="rounded-full bg-[var(--wc-accent)] px-6 py-3 text-base font-bold text-white shadow-lg ring-4 ring-[var(--wc-accent)]/20 transition hover:opacity-90"
           >
-            {user ? "Submit group stage → Build my bracket" : "Sign in to submit group stage"}
+            See your bracket →
           </button>
           {!user && (
-            <p className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-medium text-slate-600 shadow-sm backdrop-blur dark:bg-slate-900/80 dark:text-slate-300">
-              Your picks are safe — they'll attach to your account when you sign in.
-            </p>
+            <button
+              onClick={requestSignIn}
+              className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-medium text-slate-600 shadow-sm backdrop-blur transition hover:text-[var(--wc-accent)] dark:bg-slate-900/80 dark:text-slate-300"
+            >
+              Sign in to save your picks across devices
+            </button>
           )}
         </div>
       )}
