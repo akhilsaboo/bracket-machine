@@ -123,13 +123,23 @@ export async function getMemberBrackets(
   if (userIds.length === 0) return [];
   const { data, error } = await sb
     .from("brackets")
-    .select("id, user_id, predictions, knockout, submitted_at, tiebreaker_total_goals")
-    .in("user_id", userIds);
+    .select("id, user_id, predictions, knockout, submitted_at, tiebreaker_total_goals, created_at")
+    .in("user_id", userIds)
+    .order("created_at", { ascending: true });
   if (error) {
     console.error("getMemberBrackets error:", error);
     return [];
   }
-  return (data ?? []) as MemberBracket[];
+  // A user can now own multiple brackets; until pool attribution lands (Phase 2),
+  // use each member's earliest bracket so leaderboards stay deterministic.
+  const seen = new Set<string>();
+  const first: MemberBracket[] = [];
+  for (const row of (data ?? []) as MemberBracket[]) {
+    if (seen.has(row.user_id)) continue;
+    seen.add(row.user_id);
+    first.push(row);
+  }
+  return first;
 }
 
 export async function leavePool(

@@ -10,6 +10,7 @@ import { AuthControls } from "@/components/AuthControls";
 import { BracketSync } from "@/components/BracketSync";
 import { PoolsView } from "@/components/PoolsView";
 import { PoolJoinHandler } from "@/components/PoolJoinHandler";
+import { BracketSwitcher } from "@/components/BracketSwitcher";
 
 type Tab = "group" | "schedule" | "bracket" | "pools";
 const TABS: { id: Tab; label: string }[] = [
@@ -44,6 +45,7 @@ export default function Home() {
             <span className="rounded-full bg-white/15 px-3 py-1 font-medium tabular-nums">
               {hydrated ? `${predicted}/72 predicted` : "…"}
             </span>
+            <BracketSwitcher />
             <button
               onClick={reset}
               className="rounded-full bg-white/15 px-3 py-1 font-medium transition hover:bg-white/25"

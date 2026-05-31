@@ -48,6 +48,8 @@ alter table public.brackets enable row level security;
 alter table public.brackets add column if not exists submitted_at timestamptz;
 alter table public.brackets add column if not exists tiebreaker_total_goals integer;
 alter table public.brackets add column if not exists awards jsonb not null default '{}'::jsonb;
+-- 'normal' | 'second_chance' (knockout-only bracket pre-filled from the real R32)
+alter table public.brackets add column if not exists kind text not null default 'normal';
 
 drop policy if exists "brackets: owner all" on public.brackets;
 create policy "brackets: owner all" on public.brackets
