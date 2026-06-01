@@ -60,9 +60,9 @@ Near a match, insights pull in current form and news; further out they're quick 
 - Click another member's row (only after the knockout starts, June 28) to see their full bracket read-only.
 - Pool owners can delete the pool; members can leave anytime.
 
-## 8. Predictions tab *(coming soon)*
+## 8. Awards tab
 
-A tab for the tournament's individual awards: Golden Boot (top scorer), Golden Glove (best keeper), Best Player (Golden Ball), Best Young Player. Pick a team for each; locks at tournament start.
+Call the tournament's individual awards — Golden Boot (top scorer), Golden Glove (best keeper), Best Player (Golden Ball), Best Young Player. Pick a team for each; saved with your active bracket and locked once the tournament starts. (Player-level picks and award scoring are planned.)
 
 ## 9. How scoring works
 
