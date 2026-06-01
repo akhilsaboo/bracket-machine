@@ -31,6 +31,16 @@ const stripCitations = (s: string) =>
     .replace(/\s+([,.;:])/g, "$1")
     .trim();
 
+/** Strip citation tags from a stored/returned insight (defends against stale rows). */
+function sanitizeInsight(p: MatchInsight): MatchInsight {
+  return {
+    ...p,
+    prediction: stripCitations(p.prediction ?? ""),
+    storylines: (p.storylines ?? []).map(stripCitations),
+    recap: stripCitations(p.recap ?? ""),
+  };
+}
+
 /** Pull the JSON object out of a model response (handles code fences / stray text). */
 function parseInsightJson(text: string): { prediction: string; storylines: string[]; recap: string } {
   let t = text.trim();
@@ -195,7 +205,7 @@ export async function GET(req: Request) {
     if (row?.payload) {
       const age = Date.now() - new Date(row.generated_at as string).getTime();
       const started = kickoff ? Date.now() >= kickoff.getTime() : false;
-      if (started || age < FRESH_MS) return Response.json(row.payload as MatchInsight, NO_STORE);
+      if (started || age < FRESH_MS) return Response.json(sanitizeInsight(row.payload as MatchInsight), NO_STORE);
     }
   }
 
