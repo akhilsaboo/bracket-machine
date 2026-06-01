@@ -39,30 +39,35 @@ function parseInsightJson(text: string): { prediction: string; storylines: strin
 async function generate(
   home: { name: string; fifaRank: number },
   away: { name: string; fifaRank: number },
+  live: boolean,
 ): Promise<{ prediction: string; storylines: string[]; recap: string }> {
   const anthropic = new Anthropic();
 
+  // Only web-search when the match is near (current info exists and matters);
+  // otherwise generate fast from the model's own knowledge.
+  const research = live
+    ? "First, use web search to check each team's recent form, key available players, and any notable news. Then "
+    : "Drawing on these teams' well-known style, strengths, rivalries, and star players, ";
+
   const system =
     "You are a concise, knowledgeable football (soccer) analyst previewing a 2026 FIFA World Cup matchup. " +
-    "First, use web search to check each team's recent form, key available players, and any notable news. " +
-    "Then respond with ONLY a JSON object (no prose before or after, no code fences) of the exact shape: " +
+    research +
+    "respond with ONLY a JSON object (no prose before or after, no code fences) of the exact shape: " +
     `{"prediction": string, "storylines": string[], "recap": string}. ` +
     "prediction = one short sentence (a plausible scoreline is welcome). " +
     "storylines = 2-3 punchy bullets, each under ~18 words. " +
     "recap = a spoken-word preview of about 60-75 words (~30 seconds read aloud), conversational like a broadcaster's intro. " +
-    "Ground it in what you find; do not fabricate specific stats or injuries you didn't verify.";
+    "Do not fabricate specific stats, exact past results, or injuries you aren't sure of.";
 
   const userPrompt = `Preview ${home.name} (FIFA rank ${home.fifaRank}) vs ${away.name} (FIFA rank ${away.fifaRank}) at the 2026 World Cup.`;
 
   const params = {
-    // Haiku 4.5 = the fast model (no "fast Opus 4.8" exists); great for short
-    // previews. Lighter web-search version + capped uses to keep latency down
-    // while staying up to date.
+    // Haiku 4.5 = the fast model (no "fast Opus 4.8" exists); great for short previews.
     model: "claude-haiku-4-5",
     max_tokens: 2048,
     thinking: { type: "disabled" },
     system,
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+    ...(live ? { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }] } : {}),
   } as unknown as Anthropic.MessageCreateParamsNonStreaming;
 
   // Server-side web search may need re-prompting on pause_turn; loop a few times.
@@ -177,8 +182,13 @@ export async function GET(req: Request) {
     }
   }
 
+  // Web-search only when the match is within ~4 days (and not yet started) — keeps
+  // far-off insights fast, and near-match ones current.
+  const live =
+    !!kickoff && kickoff.getTime() > Date.now() && kickoff.getTime() - Date.now() < 4 * FRESH_MS;
+
   try {
-    const [ai, odds] = await Promise.all([generate(home, away), fetchOdds(home.name, away.name)]);
+    const [ai, odds] = await Promise.all([generate(home, away, live), fetchOdds(home.name, away.name)]);
     const data: MatchInsight = {
       ...base,
       configured: true,
