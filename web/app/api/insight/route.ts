@@ -4,6 +4,10 @@ import { SCHEDULE, TEAM_BY_CODE } from "@/lib/data";
 import type { MatchInsight, MatchOdds } from "@/lib/insights";
 
 export const runtime = "nodejs";
+// Always execute — caching is handled intentionally in Supabase, not at the edge.
+export const dynamic = "force-dynamic";
+
+const NO_STORE = { headers: { "cache-control": "no-store" } } as const;
 
 const FRESH_MS = 86_400_000; // regenerate an upcoming matchup at most once / 24h
 
@@ -172,10 +176,11 @@ export async function GET(req: Request) {
   if (!home || !away) {
     return Response.json({ ...base, configured: false, error: "Unknown teams" } satisfies MatchInsight, {
       status: 400,
+      headers: { "cache-control": "no-store" },
     });
   }
   if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json({ ...base, configured: false } satisfies MatchInsight);
+    return Response.json({ ...base, configured: false } satisfies MatchInsight, NO_STORE);
   }
 
   const key = `${homeCode}:${awayCode}`;
@@ -190,7 +195,7 @@ export async function GET(req: Request) {
     if (row?.payload) {
       const age = Date.now() - new Date(row.generated_at as string).getTime();
       const started = kickoff ? Date.now() >= kickoff.getTime() : false;
-      if (started || age < FRESH_MS) return Response.json(row.payload as MatchInsight);
+      if (started || age < FRESH_MS) return Response.json(row.payload as MatchInsight, NO_STORE);
     }
   }
 
@@ -212,13 +217,16 @@ export async function GET(req: Request) {
     if (sb) {
       await sb.from("match_insights").upsert({ key, payload: data, generated_at: new Date().toISOString() });
     }
-    return Response.json(data);
+    return Response.json(data, NO_STORE);
   } catch (e) {
     console.error("insight generation error:", e);
-    return Response.json({
-      ...base,
-      configured: true,
-      error: "Couldn't generate an insight right now. Try again later.",
-    } satisfies MatchInsight);
+    return Response.json(
+      {
+        ...base,
+        configured: true,
+        error: "Couldn't generate an insight right now. Try again later.",
+      } satisfies MatchInsight,
+      NO_STORE,
+    );
   }
 }
