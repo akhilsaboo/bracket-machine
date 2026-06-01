@@ -55,11 +55,14 @@ async function generate(
   const userPrompt = `Preview ${home.name} (FIFA rank ${home.fifaRank}) vs ${away.name} (FIFA rank ${away.fifaRank}) at the 2026 World Cup.`;
 
   const params = {
-    model: "claude-opus-4-8",
+    // Haiku 4.5 = the fast model (no "fast Opus 4.8" exists); great for short
+    // previews. Lighter web-search version + capped uses to keep latency down
+    // while staying up to date.
+    model: "claude-haiku-4-5",
     max_tokens: 2048,
     thinking: { type: "disabled" },
     system,
-    tools: [{ type: "web_search_20260209", name: "web_search" }],
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
   } as unknown as Anthropic.MessageCreateParamsNonStreaming;
 
   // Server-side web search may need re-prompting on pause_turn; loop a few times.
