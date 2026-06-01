@@ -20,6 +20,13 @@ function kickoffOf(homeCode: string, awayCode: string): Date | null {
   return iso ? new Date(iso) : null;
 }
 
+/** Remove web-search citation tags (e.g. <cite index="3-3">…</cite>) but keep the text. */
+const stripCitations = (s: string) =>
+  s
+    .replace(/<\/?cite[^>]*>/gi, "")
+    .replace(/\s+([,.;:])/g, "$1")
+    .trim();
+
 /** Pull the JSON object out of a model response (handles code fences / stray text). */
 function parseInsightJson(text: string): { prediction: string; storylines: string[]; recap: string } {
   let t = text.trim();
@@ -83,7 +90,12 @@ async function generate(
   const texts = resp.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text);
   for (const t of texts.reverse()) {
     try {
-      return parseInsightJson(t);
+      const r = parseInsightJson(t);
+      return {
+        prediction: stripCitations(r.prediction),
+        storylines: r.storylines.map(stripCitations),
+        recap: stripCitations(r.recap),
+      };
     } catch {
       // try the next text block
     }

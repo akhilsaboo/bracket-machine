@@ -30,7 +30,16 @@ export function MatchInsightButton({
       return;
     }
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.02;
+    // Prefer a richer English voice and tune for a broadcaster cadence.
+    const voices = window.speechSynthesis.getVoices();
+    const pick =
+      voices.find((v) => /(Daniel|Arthur|George|Oliver|Google UK English Male)/i.test(v.name)) ||
+      voices.find((v) => /en-GB/i.test(v.lang)) ||
+      voices.find((v) => /^en/i.test(v.lang) && /male|daniel|alex/i.test(v.name)) ||
+      voices.find((v) => /^en/i.test(v.lang));
+    if (pick) u.voice = pick;
+    u.rate = 1.08; // brisk, like a match intro
+    u.pitch = 0.9; // a touch lower for gravitas
     u.onend = () => setSpeaking(false);
     u.onerror = () => setSpeaking(false);
     window.speechSynthesis.cancel();
