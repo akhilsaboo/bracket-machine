@@ -61,8 +61,13 @@ async function generate(
   home: { name: string; fifaRank: number },
   away: { name: string; fifaRank: number },
   live: boolean,
+  model: string,
 ): Promise<{ prediction: string; storylines: string[]; recap: string }> {
   const anthropic = new Anthropic();
+  // Opus supports the richer dynamic-filtering search; Haiku uses the lighter one.
+  const searchTool = model.includes("opus")
+    ? { type: "web_search_20260209", name: "web_search", max_uses: 3 }
+    : { type: "web_search_20250305", name: "web_search", max_uses: 2 };
 
   // Only web-search when the match is near (current info exists and matters);
   // otherwise generate fast from the model's own knowledge.
@@ -83,12 +88,11 @@ async function generate(
   const userPrompt = `Preview ${home.name} (FIFA rank ${home.fifaRank}) vs ${away.name} (FIFA rank ${away.fifaRank}) at the 2026 World Cup.`;
 
   const params = {
-    // Haiku 4.5 = the fast model (no "fast Opus 4.8" exists); great for short previews.
-    model: "claude-haiku-4-5",
+    model,
     max_tokens: 2048,
     thinking: { type: "disabled" },
     system,
-    ...(live ? { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }] } : {}),
+    ...(live ? { tools: [searchTool] } : {}),
   } as unknown as Anthropic.MessageCreateParamsNonStreaming;
 
   // Server-side web search may need re-prompting on pause_turn; loop a few times.
@@ -168,6 +172,9 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const homeCode = (searchParams.get("home") ?? "").toUpperCase();
   const awayCode = (searchParams.get("away") ?? "").toUpperCase();
+  // full=1 → best model (Opus) + web search, bypassing the cache to force a fresh
+  // generation. Used by the background pre-generation cron.
+  const full = searchParams.get("full") === "1";
   const home = TEAM_BY_CODE.get(homeCode);
   const away = TEAM_BY_CODE.get(awayCode);
 
@@ -200,7 +207,7 @@ export async function GET(req: Request) {
   // Durable cache: one stored insight per matchup, shared across everyone.
   // Fresh if the match has already kicked off (freeze it) or it was generated
   // within the last 24h; otherwise regenerate so upcoming matches stay current.
-  if (sb) {
+  if (!full && sb) {
     const { data: row } = await sb.from("match_insights").select("payload, generated_at").eq("key", key).maybeSingle();
     if (row?.payload) {
       const age = Date.now() - new Date(row.generated_at as string).getTime();
@@ -209,13 +216,14 @@ export async function GET(req: Request) {
     }
   }
 
-  // Web-search only when the match is within ~4 days (and not yet started) — keeps
-  // far-off insights fast, and near-match ones current.
+  // Web search when full (background) or when the match is within ~4 days (and not
+  // started) — keeps far-off on-demand insights fast, near-match ones current.
   const live =
-    !!kickoff && kickoff.getTime() > Date.now() && kickoff.getTime() - Date.now() < 4 * FRESH_MS;
+    full || (!!kickoff && kickoff.getTime() > Date.now() && kickoff.getTime() - Date.now() < 4 * FRESH_MS);
+  const model = full ? "claude-opus-4-8" : "claude-haiku-4-5";
 
   try {
-    const [ai, odds] = await Promise.all([generate(home, away, live), fetchOdds(home.name, away.name)]);
+    const [ai, odds] = await Promise.all([generate(home, away, live, model), fetchOdds(home.name, away.name)]);
     const data: MatchInsight = {
       ...base,
       configured: true,

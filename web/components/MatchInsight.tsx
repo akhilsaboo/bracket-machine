@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { flag } from "@/lib/flags";
 import { fetchInsight, type MatchInsight } from "@/lib/insights";
 
@@ -17,38 +17,68 @@ export function MatchInsightButton({
   const [data, setData] = useState<MatchInsight | null>(null);
   const [loading, setLoading] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
-  const stopSpeech = () => {
+  const stopPlayback = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     setSpeaking(false);
   };
 
-  const toggleRecap = (text: string) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    if (speaking) {
-      stopSpeech();
+  // Fallback voice if Google TTS isn't configured (the robotic-but-free browser one).
+  const browserSpeak = (text: string) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      setSpeaking(false);
       return;
     }
     const u = new SpeechSynthesisUtterance(text);
-    // Prefer a richer English voice and tune for a broadcaster cadence.
     const voices = window.speechSynthesis.getVoices();
     const pick =
       voices.find((v) => /(Daniel|Arthur|George|Oliver|Google UK English Male)/i.test(v.name)) ||
       voices.find((v) => /en-GB/i.test(v.lang)) ||
-      voices.find((v) => /^en/i.test(v.lang) && /male|daniel|alex/i.test(v.name)) ||
       voices.find((v) => /^en/i.test(v.lang));
     if (pick) u.voice = pick;
-    u.rate = 1.08; // brisk, like a match intro
-    u.pitch = 0.9; // a touch lower for gravitas
+    u.rate = 1.08;
+    u.pitch = 0.9;
     u.onend = () => setSpeaking(false);
     u.onerror = () => setSpeaking(false);
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
+  };
+
+  const toggleRecap = async (text: string) => {
+    if (speaking) {
+      stopPlayback();
+      return;
+    }
     setSpeaking(true);
+    try {
+      // Real (NotebookLM-grade) audio via Google TTS; cached per modal instance.
+      if (!audioUrlRef.current) {
+        const r = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!r.ok) throw new Error("tts unavailable");
+        audioUrlRef.current = URL.createObjectURL(await r.blob());
+      }
+      const audio = new Audio(audioUrlRef.current);
+      audioRef.current = audio;
+      audio.onended = () => setSpeaking(false);
+      audio.onerror = () => setSpeaking(false);
+      await audio.play();
+    } catch {
+      browserSpeak(text); // graceful fallback
+    }
   };
 
   const close = () => {
-    stopSpeech();
+    stopPlayback();
     setOpen(false);
   };
 
