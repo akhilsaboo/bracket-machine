@@ -14,12 +14,14 @@ import { BracketSync } from "@/components/BracketSync";
 import { PoolsView } from "@/components/PoolsView";
 import { PoolJoinHandler } from "@/components/PoolJoinHandler";
 import { BracketSwitcher } from "@/components/BracketSwitcher";
+import { PredictionsView } from "@/components/PredictionsView";
 
-type Tab = "group" | "schedule" | "bracket" | "pools";
+type Tab = "group" | "schedule" | "bracket" | "awards" | "pools";
 const TABS: { id: Tab; label: string }[] = [
   { id: "group", label: "Group Stage" },
   { id: "schedule", label: "Schedule" },
   { id: "bracket", label: "Bracket" },
+  { id: "awards", label: "Awards" },
   { id: "pools", label: "Pools" },
 ];
 
@@ -140,6 +142,7 @@ export default function Home() {
         {effectiveTab === "group" && <GroupStageView onSubmitted={() => setTab("bracket")} />}
         {effectiveTab === "schedule" && <ScheduleView />}
         {effectiveTab === "bracket" && <BracketView />}
+        {effectiveTab === "awards" && <PredictionsView />}
         {effectiveTab === "pools" && <PoolsView />}
       </main>
     </div>
