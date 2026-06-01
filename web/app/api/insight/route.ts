@@ -1,63 +1,86 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { TEAM_BY_CODE } from "@/lib/data";
+import { createClient } from "@supabase/supabase-js";
+import { SCHEDULE, TEAM_BY_CODE } from "@/lib/data";
 import type { MatchInsight, MatchOdds } from "@/lib/insights";
 
 export const runtime = "nodejs";
 
-// Module-level cache (per warm function instance) so a given matchup is generated
-// at most once per instance per day — keeps Claude + odds calls cheap. For a
-// cross-instance durable cache, back this with Supabase/Blob later.
-const cache = new Map<string, { data: MatchInsight; at: number }>();
-const DAY_MS = 86_400_000;
+const FRESH_MS = 86_400_000; // regenerate an upcoming matchup at most once / 24h
 
-const SCHEMA = {
-  type: "object",
-  properties: {
-    prediction: { type: "string" },
-    storylines: { type: "array", items: { type: "string" } },
-    recap: { type: "string" },
-  },
-  required: ["prediction", "storylines", "recap"],
-  additionalProperties: false,
-} as const;
+function sbServer() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return url && key ? createClient(url, key) : null;
+}
+
+/** Kickoff time for a group matchup (knockout teams aren't in the static schedule). */
+function kickoffOf(homeCode: string, awayCode: string): Date | null {
+  const f = SCHEDULE.find((x) => x.home === homeCode && x.away === awayCode);
+  const iso = f?.kickoffUTC ?? f?.kickoff ?? null;
+  return iso ? new Date(iso) : null;
+}
+
+/** Pull the JSON object out of a model response (handles code fences / stray text). */
+function parseInsightJson(text: string): { prediction: string; storylines: string[]; recap: string } {
+  let t = text.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) t = fence[1].trim();
+  const start = t.indexOf("{");
+  const end = t.lastIndexOf("}");
+  if (start !== -1 && end !== -1) t = t.slice(start, end + 1);
+  const p = JSON.parse(t) as { prediction?: string; storylines?: string[]; recap?: string };
+  return {
+    prediction: p.prediction ?? "",
+    storylines: Array.isArray(p.storylines) ? p.storylines.slice(0, 3) : [],
+    recap: p.recap ?? "",
+  };
+}
 
 async function generate(
   home: { name: string; fifaRank: number },
   away: { name: string; fifaRank: number },
 ): Promise<{ prediction: string; storylines: string[]; recap: string }> {
-  const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from env
+  const anthropic = new Anthropic();
 
-  const msg = await anthropic.messages.create({
+  const system =
+    "You are a concise, knowledgeable football (soccer) analyst previewing a 2026 FIFA World Cup matchup. " +
+    "First, use web search to check each team's recent form, key available players, and any notable news. " +
+    "Then respond with ONLY a JSON object (no prose before or after, no code fences) of the exact shape: " +
+    `{"prediction": string, "storylines": string[], "recap": string}. ` +
+    "prediction = one short sentence (a plausible scoreline is welcome). " +
+    "storylines = 2-3 punchy bullets, each under ~18 words. " +
+    "recap = a spoken-word preview of about 60-75 words (~30 seconds read aloud), conversational like a broadcaster's intro. " +
+    "Ground it in what you find; do not fabricate specific stats or injuries you didn't verify.";
+
+  const userPrompt = `Preview ${home.name} (FIFA rank ${home.fifaRank}) vs ${away.name} (FIFA rank ${away.fifaRank}) at the 2026 World Cup.`;
+
+  const params = {
     model: "claude-opus-4-8",
-    max_tokens: 1024,
+    max_tokens: 2048,
     thinking: { type: "disabled" },
-    system:
-      "You are a concise, knowledgeable football (soccer) analyst previewing a 2026 FIFA World Cup matchup. " +
-      "Return: (1) one short prediction sentence (a plausible scoreline is welcome); (2) 2-3 punchy storylines, each under ~18 words; " +
-      "(3) a 'recap' — a spoken-word preview of about 60-75 words (~30 seconds read aloud), conversational like a broadcaster's intro, no bullet points. " +
-      "Stay grounded: reference well-known team strengths, rivalries, and star players you are confident about. " +
-      "Do NOT invent specific stats, exact past results, or injury news.",
-    messages: [
-      {
-        role: "user",
-        content: `Preview ${home.name} (FIFA rank ${home.fifaRank}) vs ${away.name} (FIFA rank ${away.fifaRank}).`,
-      },
-    ],
-    // Structured output keeps the response a clean JSON object (no rambling).
-    output_config: { format: { type: "json_schema", schema: SCHEMA } },
-  } as Anthropic.MessageCreateParamsNonStreaming);
+    system,
+    tools: [{ type: "web_search_20260209", name: "web_search" }],
+  } as unknown as Anthropic.MessageCreateParamsNonStreaming;
 
-  const text = msg.content.find((b) => b.type === "text");
-  const parsed = JSON.parse(text && "text" in text ? text.text : "{}") as {
-    prediction?: string;
-    storylines?: string[];
-    recap?: string;
-  };
-  return {
-    prediction: parsed.prediction ?? "",
-    storylines: Array.isArray(parsed.storylines) ? parsed.storylines.slice(0, 3) : [],
-    recap: parsed.recap ?? "",
-  };
+  // Server-side web search may need re-prompting on pause_turn; loop a few times.
+  let messages: Anthropic.MessageParam[] = [{ role: "user", content: userPrompt }];
+  let resp = await anthropic.messages.create({ ...params, messages });
+  let guard = 0;
+  while (resp.stop_reason === "pause_turn" && guard++ < 3) {
+    messages = [{ role: "user", content: userPrompt }, { role: "assistant", content: resp.content }];
+    resp = await anthropic.messages.create({ ...params, messages });
+  }
+
+  // Find the text block that contains the JSON (prefer the last).
+  const texts = resp.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text);
+  for (const t of texts.reverse()) {
+    try {
+      return parseInsightJson(t);
+    } catch {
+      // try the next text block
+    }
+  }
+  throw new Error("no parseable insight JSON in response");
 }
 
 async function fetchOdds(homeName: string, awayName: string): Promise<MatchOdds | null> {
@@ -79,8 +102,6 @@ async function fetchOdds(homeName: string, awayName: string): Promise<MatchOdds 
         (norm(e.away_team).includes(norm(awayName)) || norm(awayName).includes(norm(e.away_team))),
     );
     if (!ev) return null;
-    // Average decimal odds across books for home / draw / away, then convert to
-    // implied probabilities and de-vig (normalize to 100).
     const sums = { home: 0, draw: 0, away: 0 };
     let n = 0;
     for (const bk of ev.bookmakers) {
@@ -133,14 +154,25 @@ export async function GET(req: Request) {
       status: 400,
     });
   }
-
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ ...base, configured: false } satisfies MatchInsight);
   }
 
-  const ck = `${homeCode}:${awayCode}`;
-  const hit = cache.get(ck);
-  if (hit && Date.now() - hit.at < DAY_MS) return Response.json(hit.data);
+  const key = `${homeCode}:${awayCode}`;
+  const sb = sbServer();
+  const kickoff = kickoffOf(homeCode, awayCode);
+
+  // Durable cache: one stored insight per matchup, shared across everyone.
+  // Fresh if the match has already kicked off (freeze it) or it was generated
+  // within the last 24h; otherwise regenerate so upcoming matches stay current.
+  if (sb) {
+    const { data: row } = await sb.from("match_insights").select("payload, generated_at").eq("key", key).maybeSingle();
+    if (row?.payload) {
+      const age = Date.now() - new Date(row.generated_at as string).getTime();
+      const started = kickoff ? Date.now() >= kickoff.getTime() : false;
+      if (started || age < FRESH_MS) return Response.json(row.payload as MatchInsight);
+    }
+  }
 
   try {
     const [ai, odds] = await Promise.all([generate(home, away), fetchOdds(home.name, away.name)]);
@@ -152,7 +184,9 @@ export async function GET(req: Request) {
       storylines: ai.storylines,
       recap: ai.recap,
     };
-    cache.set(ck, { data, at: Date.now() });
+    if (sb) {
+      await sb.from("match_insights").upsert({ key, payload: data, generated_at: new Date().toISOString() });
+    }
     return Response.json(data);
   } catch (e) {
     console.error("insight generation error:", e);

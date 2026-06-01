@@ -167,3 +167,20 @@ create policy "brackets: pool mates can view" on public.brackets for select
 drop policy if exists "profiles: pool mates can view" on public.profiles;
 create policy "profiles: pool mates can view" on public.profiles for select
   using (id = auth.uid() or public.shares_pool_with(id));
+
+-- 4. AI matchup insights cache (non-sensitive shared cache) -------------------
+-- One generated insight per matchup ("HOME:AWAY"), reused across everyone.
+create table if not exists public.match_insights (
+  key text primary key,
+  payload jsonb not null,
+  generated_at timestamptz not null default now()
+);
+alter table public.match_insights enable row level security;
+-- Public read; writes allowed (the server route generates + upserts here). The
+-- content is non-sensitive previews, so a permissive cache policy is acceptable.
+drop policy if exists "match_insights: public read"   on public.match_insights;
+drop policy if exists "match_insights: public insert" on public.match_insights;
+drop policy if exists "match_insights: public update" on public.match_insights;
+create policy "match_insights: public read"   on public.match_insights for select using (true);
+create policy "match_insights: public insert" on public.match_insights for insert with check (true);
+create policy "match_insights: public update" on public.match_insights for update using (true) with check (true);
