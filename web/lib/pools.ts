@@ -130,7 +130,7 @@ export async function setPoolBracket(
   poolId: string,
   userId: string,
   bracketId: string | null,
-): Promise<boolean> {
+): Promise<{ ok: boolean; error: string | null }> {
   // Upsert (not just update) so it works whether or not the membership row is
   // already present/visible — (pool_id, user_id) is the primary key.
   const { data, error } = await sb
@@ -139,9 +139,10 @@ export async function setPoolBracket(
     .select("user_id");
   if (error) {
     console.error("setPoolBracket error:", error);
-    return false;
+    return { ok: false, error: error.message };
   }
-  return (data?.length ?? 0) > 0;
+  if ((data?.length ?? 0) === 0) return { ok: false, error: "update affected 0 rows (membership row not visible?)" };
+  return { ok: true, error: null };
 }
 
 /** Transfer pool ownership to another member (owner-only; validated server-side). */

@@ -61,12 +61,13 @@ export async function loadUserBrackets(
   return (data ?? []).map((r) => rowToRecord(r as BracketRow));
 }
 
-/** Insert-or-update a bracket by its (client-generated) id. */
+/** Insert-or-update a bracket by its (client-generated) id. Returns the error
+ *  message on failure (null on success) so callers can surface it. */
 export async function upsertBracket(
   supabase: SupabaseClient,
   userId: string,
   record: BracketRecord,
-): Promise<void> {
+): Promise<string | null> {
   const { error } = await supabase.from("brackets").upsert(
     {
       id: record.id,
@@ -82,6 +83,7 @@ export async function upsertBracket(
     { onConflict: "id" },
   );
   if (error) console.error("bracket upsert error:", error);
+  return error?.message ?? null;
 }
 
 /** Remove a bracket row (used when the user deletes a bracket while signed in).

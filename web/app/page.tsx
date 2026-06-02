@@ -143,7 +143,7 @@ export default function Home() {
         {effectiveTab === "schedule" && <ScheduleView />}
         {effectiveTab === "bracket" && <BracketView />}
         {effectiveTab === "awards" && <PredictionsView />}
-        {effectiveTab === "pools" && <PoolsView />}
+        {effectiveTab === "pools" && <PoolsView onGoToGroupTab={() => setTab("group")} />}
       </main>
     </div>
   );

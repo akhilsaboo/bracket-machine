@@ -34,7 +34,7 @@ import {
   type PoolMember,
 } from "@/lib/pools";
 
-export function PoolsView() {
+export function PoolsView({ onGoToGroupTab }: { onGoToGroupTab?: () => void }) {
   const { user, requestSignIn } = useAuth();
 
   if (!isSupabaseConfigured()) {
@@ -62,10 +62,10 @@ export function PoolsView() {
     );
   }
 
-  return <PoolsAuthed userId={user.id} />;
+  return <PoolsAuthed userId={user.id} onGoToGroupTab={onGoToGroupTab} />;
 }
 
-function PoolsAuthed({ userId }: { userId: string }) {
+function PoolsAuthed({ userId, onGoToGroupTab }: { userId: string; onGoToGroupTab?: () => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pools, setPools] = useState<Pool[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +92,7 @@ function PoolsAuthed({ userId }: { userId: string }) {
       <PoolDetail
         pool={pool}
         currentUserId={userId}
+        onGoToGroupTab={onGoToGroupTab}
         onBack={() => {
           setSelectedId(null);
           refresh();
@@ -250,10 +251,12 @@ function PoolDetail({
   pool,
   currentUserId,
   onBack,
+  onGoToGroupTab,
 }: {
   pool: Pool;
   currentUserId: string;
   onBack: () => void;
+  onGoToGroupTab?: () => void;
 }) {
   const { now, isPreview, brackets: myBrackets, createBracket, allRecords } = usePredictions();
   const [members, setMembers] = useState<PoolMember[]>([]);
@@ -311,24 +314,34 @@ function PoolDetail({
   // created one may not have synced yet → FK error otherwise), then links it.
   const assignEntry = async (rec: BracketRecord) => {
     const sb = getSupabaseBrowser();
-    if (!sb) return;
+    if (!sb) {
+      setEntryError("Not signed in / Supabase unavailable.");
+      return;
+    }
     setEntryError(null);
+    const fail = (m: string) => {
+      setEntryError(m);
+      if (typeof window !== "undefined") window.alert(m); // loud, temporary diagnostic
+    };
     try {
-      await upsertBracket(sb, currentUserId, rec);
-      const ok = await setPoolBracket(sb, pool.id, currentUserId, rec.id);
-      if (!ok) {
-        setEntryError("Couldn't save your entry — the write didn't take. Re-run schema.sql in Supabase, then retry.");
+      const bracketErr = await upsertBracket(sb, currentUserId, rec);
+      if (bracketErr) {
+        fail(`Step 1 (save bracket) failed: ${bracketErr}`);
         return;
       }
-      // Optimistically reflect it so the UI updates immediately (and the chooser
-      // doesn't re-open while the reload is in flight).
+      const res = await setPoolBracket(sb, pool.id, currentUserId, rec.id);
+      if (!res.ok) {
+        fail(`Step 2 (link to pool) failed: ${res.error ?? "unknown"}`);
+        return;
+      }
+      // Optimistically reflect it so the UI updates immediately.
       setMembers((prev) =>
         prev.map((m) => (m.user_id === currentUserId ? { ...m, bracket_id: rec.id } : m)),
       );
       setChooserOpen(false);
       setReloadKey((k) => k + 1);
     } catch (e) {
-      setEntryError(`Couldn't save your entry: ${e instanceof Error ? e.message : String(e)}`);
+      fail(`Entry error: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -534,7 +547,11 @@ function PoolDetail({
           onPick={pickEntry}
           onCreate={() => {
             const rec = createBracket();
-            if (rec) void assignEntry(rec);
+            if (rec) {
+              void assignEntry(rec);
+              // Take them to the Group Stage tab to actually fill out the new bracket.
+              onGoToGroupTab?.();
+            }
           }}
           onClose={() => setChooserOpen(false)}
         />
@@ -606,21 +623,25 @@ function PoolDetail({
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         {isOwner ? (
           <div className="space-y-3">
-            {otherMembers.length > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
                 <div>
                   <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                     Transfer ownership
                   </div>
-                  <p className="text-xs text-slate-500">Hand the pool to another member.</p>
+                  <p className="text-xs text-slate-500">
+                    {otherMembers.length > 0
+                      ? "Hand the pool to another member."
+                      : "Once someone else joins, you can hand the pool to them."}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <select
                     value={transferTo}
                     onChange={(e) => setTransferTo(e.target.value)}
-                    className="rounded-md border border-slate-300 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-[var(--wc-accent)] dark:border-slate-700"
+                    disabled={otherMembers.length === 0}
+                    className="rounded-md border border-slate-300 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-[var(--wc-accent)] disabled:opacity-50 dark:border-slate-700"
                   >
-                    <option value="">Choose member…</option>
+                    <option value="">{otherMembers.length ? "Choose member…" : "No other members"}</option>
                     {otherMembers.map((m) => (
                       <option key={m.user_id} value={m.user_id}>
                         {m.display_name ?? "Anonymous"}
@@ -636,7 +657,6 @@ function PoolDetail({
                   </button>
                 </div>
               </div>
-            )}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Delete pool</div>
