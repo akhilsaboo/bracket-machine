@@ -97,30 +97,39 @@ export async function getPoolMembers(
   sb: SupabaseClient,
   poolId: string,
 ): Promise<PoolMember[]> {
+  // Fetch members WITHOUT an embedded profiles join — pool_members and profiles
+  // have no direct FK (both only reference auth.users), so PostgREST can't embed
+  // them and the whole query would error → empty list. Fetch names separately.
   const { data, error } = await sb
     .from("pool_members")
-    .select("user_id, joined_at, bracket_id, profiles(display_name)")
+    .select("user_id, joined_at, bracket_id")
     .eq("pool_id", poolId)
     .order("joined_at", { ascending: true });
   if (error) {
     console.error("getPoolMembers error:", error);
     return [];
   }
-  return (data ?? []).map((m) => {
-    const row = m as unknown as {
-      user_id: string;
-      joined_at: string;
-      bracket_id: string | null;
-      profiles: { display_name: string | null } | { display_name: string | null }[] | null;
-    };
-    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-    return {
-      user_id: row.user_id,
-      joined_at: row.joined_at,
-      bracket_id: row.bracket_id ?? null,
-      display_name: profile?.display_name ?? null,
-    };
-  });
+  const rows = (data ?? []) as { user_id: string; joined_at: string; bracket_id: string | null }[];
+
+  const ids = rows.map((r) => r.user_id);
+  const names = new Map<string, string | null>();
+  if (ids.length > 0) {
+    const { data: profs, error: profErr } = await sb
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", ids);
+    if (profErr) console.error("getPoolMembers profiles error:", profErr);
+    for (const p of (profs ?? []) as { id: string; display_name: string | null }[]) {
+      names.set(p.id, p.display_name);
+    }
+  }
+
+  return rows.map((r) => ({
+    user_id: r.user_id,
+    joined_at: r.joined_at,
+    bracket_id: r.bracket_id ?? null,
+    display_name: names.get(r.user_id) ?? null,
+  }));
 }
 
 /** Attribute one of my brackets to a pool (or clear it with null). Returns false
