@@ -45,7 +45,7 @@ export function ScheduleView() {
     <div className="mx-auto max-w-2xl space-y-5">
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-400">
-          Adjust scores in time order — changes flow to your groups and bracket.
+          Adjust scores in chronological order — changes flow to your groups and bracket.
         </p>
         {showPreviewToggle && (
           <button

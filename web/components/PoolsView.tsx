@@ -33,6 +33,7 @@ import {
   type Pool,
   type PoolMember,
 } from "@/lib/pools";
+import { getPicksSummary, type UserPicksSummary } from "@/lib/predictionPicks";
 
 export function PoolsView({ onGoToGroupTab }: { onGoToGroupTab?: () => void }) {
   const { user, requestSignIn } = useAuth();
@@ -261,6 +262,7 @@ function PoolDetail({
   const { now, isPreview, brackets: myBrackets, createBracket, allRecords } = usePredictions();
   const [members, setMembers] = useState<PoolMember[]>([]);
   const [brackets, setBrackets] = useState<MemberBracket[]>([]);
+  const [picksSummary, setPicksSummary] = useState<Map<string, UserPicksSummary>>(new Map());
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -289,6 +291,7 @@ function PoolDetail({
     (async () => {
       const ms = await getPoolMembers(sb, pool.id);
       setMembers(ms);
+      getPicksSummary(sb, ms.map((m) => m.user_id)).then(setPicksSummary);
       // Resolve each member's bracket: the one attributed to this pool, else
       // (legacy / not-yet-chosen) their earliest bracket as a fallback.
       const attributedIds = ms.map((m) => m.bracket_id).filter((x): x is string => !!x);
@@ -389,6 +392,31 @@ function PoolDetail({
     );
     return rows;
   }, [members, brackets, isPreview, now, truth, currentUserId]);
+
+  // Predictions (Futures) leaderboard — picks made + odds-weighted points.
+  const anyResolved = useMemo(
+    () => [...picksSummary.values()].some((s) => s.resolved),
+    [picksSummary],
+  );
+  const predLeaderboard = useMemo(() => {
+    const rows = members.map((m) => {
+      const s = picksSummary.get(m.user_id);
+      return {
+        user_id: m.user_id,
+        display_name: m.display_name ?? "Anonymous",
+        isYou: m.user_id === currentUserId,
+        count: s?.count ?? 0,
+        potential: s?.potential ?? 0,
+        earned: s?.earned ?? 0,
+      };
+    });
+    rows.sort((a, b) =>
+      anyResolved
+        ? b.earned - a.earned || b.potential - a.potential || a.display_name.localeCompare(b.display_name)
+        : b.potential - a.potential || b.count - a.count || a.display_name.localeCompare(b.display_name),
+    );
+    return rows;
+  }, [members, picksSummary, anyResolved, currentUserId]);
 
   const copyInvite = async () => {
     try {
@@ -613,6 +641,57 @@ function PoolDetail({
           correct outcome <span className="font-bold text-amber-600 dark:text-amber-400">✓ +5</span>.
           Knockout per correct match: R32 +20, R16 +40, QF +80, SF +160, 3rd-place +160, Champion +320.
           Ties broken by KO points, then exact-score count, then tiebreaker total-goals.
+        </footer>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <header className="flex items-center justify-between bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
+          <span>🎯 Predictions</span>
+          <span className="text-[10px] font-normal text-slate-400">
+            {anyResolved ? "Points from correct calls" : "Picks lock in; points score as results land"}
+          </span>
+        </header>
+        {loading ? (
+          <p className="px-4 py-6 text-sm text-slate-400">Loading…</p>
+        ) : predLeaderboard.every((r) => r.count === 0) ? (
+          <p className="px-4 py-6 text-sm text-slate-400">
+            No one in this pool has made Futures picks yet. Head to the Predictions tab to call the big
+            questions.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wide text-slate-400">
+                <th className="w-8 px-3 py-2 text-left">#</th>
+                <th className="px-3 py-2 text-left">Member</th>
+                <th className="w-16 px-3 py-2 text-right" title="Futures picked">Picks</th>
+                <th className="w-20 px-3 py-2 text-right" title={anyResolved ? "Points earned" : "Max points if every pick hits"}>
+                  {anyResolved ? "Pts" : "Potential"}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {predLeaderboard.map((r, i) => (
+                <tr
+                  key={r.user_id}
+                  className={`border-t border-slate-100 dark:border-slate-800 ${r.isYou ? "bg-[var(--wc-accent)]/5 font-semibold" : ""}`}
+                >
+                  <td className="px-3 py-2 text-slate-400">{i + 1}</td>
+                  <td className="px-3 py-2">
+                    {r.display_name} {r.isYou && <span className="ml-1 text-[10px] text-[var(--wc-accent)]">YOU</span>}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-500">{r.count || "—"}</td>
+                  <td className="px-3 py-2 text-right tabular-nums font-bold">
+                    {anyResolved ? r.earned : r.potential || "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <footer className="border-t border-slate-100 bg-slate-50 px-4 py-3 text-[10px] leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-800/40">
+          <strong>Odds-weighted:</strong> a correct pick earns <span className="font-bold">round(10 ÷ chance)</span>,
+          capped at 100 — bolder (less likely) calls pay more. {anyResolved ? "" : "Standings show potential points until markets resolve."}
         </footer>
       </div>
 

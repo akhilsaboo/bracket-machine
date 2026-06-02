@@ -79,8 +79,10 @@ export function BracketView() {
   const canSubmit = !!champ && !bracketSubmitted;
 
   const confirmSubmit = () => {
-    const n = parseInt(goalsInput, 10);
-    if (Number.isNaN(n) || n < 0) return;
+    // The tiebreaker is optional — submit with null when left blank.
+    const trimmed = goalsInput.trim();
+    const n = trimmed === "" ? null : parseInt(trimmed, 10);
+    if (n !== null && (Number.isNaN(n) || n < 0)) return;
     setTiebreakerGoals(n);
     setBracketSubmitted(true);
     setModalOpen(false);
@@ -158,7 +160,8 @@ export function BracketView() {
             </div>
             <div className="space-y-3 p-5">
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                Tiebreaker: total goals scored in the tournament
+                Tiebreaker: total goals scored in the tournament{" "}
+                <span className="font-normal text-slate-400">(optional)</span>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -170,7 +173,8 @@ export function BracketView() {
                 />
               </label>
               <p className="text-[11px] text-slate-500">
-                If two brackets tie on points, whoever is closer to the real total wins.
+                Optional — if two brackets tie on points, whoever is closer to the real total wins.
+                Skip it and you'll just lose ties to someone who guessed.
               </p>
               <div className="flex gap-2">
                 <button
@@ -181,8 +185,7 @@ export function BracketView() {
                 </button>
                 <button
                   onClick={confirmSubmit}
-                  disabled={goalsInput === "" || Number.isNaN(parseInt(goalsInput, 10))}
-                  className="flex-1 rounded-md bg-[var(--wc-accent)] px-3 py-2 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+                  className="flex-1 rounded-md bg-[var(--wc-accent)] px-3 py-2 text-sm font-bold text-white transition hover:opacity-90"
                 >
                   Submit
                 </button>

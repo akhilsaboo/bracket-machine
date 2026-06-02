@@ -1,6 +1,6 @@
 # Bracket Machine
 
-A live, interactive bracket builder for the 2026 FIFA World Cup. Pick scores for every group-stage match, watch standings recompute instantly with full FIFA tiebreakers, and your knockout bracket builds itself via the official Annex C allocation. Auto-fill with AI personas, keep multiple brackets, compete with friends in pools, and get AI matchup insights.
+A live, interactive bracket builder for the 2026 FIFA World Cup. Pick scores for every group-stage match, watch standings recompute instantly with full FIFA tiebreakers, and your knockout bracket builds itself via the official Annex C allocation. Auto-fill with AI personas, keep multiple brackets, compete with friends in pools, predict tournament futures against live Kalshi odds, and get AI matchup insights.
 
 🔗 **Live:** https://bracketmachine.app
 
@@ -10,6 +10,7 @@ A live, interactive bracket builder for the 2026 FIFA World Cup. Pick scores for
 - **Backend:** Supabase (Postgres + Auth + RLS)
 - **Hosting:** Vercel (apex domain `bracketmachine.app`) — daily cron pre-generates matchup insights
 - **AI:** Claude (Anthropic API) for matchup predictions/storylines; Google Cloud TTS for the spoken recap; The Odds API for win-probability bars
+- **Markets:** Kalshi public market-data API (no key) for Predictions/Futures odds
 - **Engine:** Python reference implementation at the repo root (`teams.py`, `group_tiebreak.py`, `lookup_table.py`, `main.py`) + verified TypeScript port in `web/lib/engine/`. The TS port is validated against golden vectors produced by the Python engine on every build.
 
 ## Highlights
@@ -23,6 +24,7 @@ A live, interactive bracket builder for the 2026 FIFA World Cup. Pick scores for
 - Lock-at-kickoff — each match becomes non-editable the moment it kicks off.
 - Pick grading once results land: green ★ exact, yellow ✓ correct outcome, red ✗ wrong.
 - Friend pools with shareable invite links (`?join=CODE`), leaderboards combining group + knockout scoring, **per-pool bracket attribution** (choose which of your brackets competes in each pool), and per-member bracket viewing once knockout begins.
+- **Predictions / Futures** (🔮): call the tournament's big questions (Winner, Golden Boot/Ball/Glove, Messi-vs-Ronaldo, furthest host, first-time winner) with **live Kalshi market odds** and country flags on every option. Odds-weighted scoring (bolder calls pay more, capped at 100), picks synced to your account, and a **per-pool 🎯 Predictions leaderboard** alongside the bracket board.
 - **AI matchup insights** (📰): per-match prediction + storylines (Claude), win-probability bars (The Odds API), and a ~30s spoken recap (Google Cloud TTS). Cached in Supabase and pre-generated daily by a Vercel cron so they're instant.
 - Google OAuth + email/password auth via Supabase, with RLS keeping data scoped per-user / per-pool.
 
@@ -64,7 +66,7 @@ Set in Vercel (and `web/.env.local` for local dev). The app degrades gracefully 
 ```
 .
 ├── web/                  Next.js app (the live site)
-│   ├── app/              App Router pages + API routes (/api/insight, /api/insight/cron, /api/tts)
+│   ├── app/              App Router pages + API routes (/api/insight, /api/insight/cron, /api/tts, /api/kalshi)
 │   ├── components/       UI (PoolsView, BracketTree, MatchRow, BracketSwitcher, AutoFillModal, MatchInsight, …)
 │   ├── lib/              data + engine port + scoring + auth/Supabase + autofill personas + insights
 │   └── data/             teams, schedule, Annex C, golden vectors (exported)

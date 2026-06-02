@@ -77,7 +77,7 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
           {!user && (
             <button
               onClick={requestSignIn}
-              className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-medium text-slate-600 shadow-sm backdrop-blur transition hover:text-[var(--wc-accent)] dark:bg-slate-900/80 dark:text-slate-300"
+              className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white shadow-md transition hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
               Sign in to save your picks across devices
             </button>

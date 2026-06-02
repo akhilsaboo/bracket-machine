@@ -1,24 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FUTURES, fetchFuture, type KalshiMarketData } from "@/lib/kalshi";
+import { flagFromIso2 } from "@/lib/flags";
 import { isKnockoutStarted } from "@/lib/results";
 import { usePredictions } from "@/lib/predictions";
+import { useAuth } from "@/lib/auth";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
+import {
+  loadMyPicks,
+  saveMyPick,
+  deleteMyPick,
+  pointsFor,
+  type StoredPick,
+  type PicksByMarket,
+} from "@/lib/predictionPicks";
 
 const PICKS_KEY = "wc2026-prediction-picks";
 
-interface Pick {
-  ticker: string; // outcome market ticker (or "<series>-NO" for a binary No)
-  label: string;
-  prob: number | null; // implied % locked at pick time
-}
-type Picks = Record<string, Pick>; // by future key
+type Pick = StoredPick;
+type Picks = PicksByMarket; // by future key
 
-function loadPicks(): Picks {
+function loadLocalPicks(): Picks {
   try {
     return JSON.parse(localStorage.getItem(PICKS_KEY) ?? "{}") as Picks;
   } catch {
     return {};
+  }
+}
+function saveLocalPicks(p: Picks) {
+  try {
+    localStorage.setItem(PICKS_KEY, JSON.stringify(p));
+  } catch {
+    /* ignore */
   }
 }
 
@@ -32,8 +46,10 @@ export function PredictionsView() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-lg font-extrabold">Predictions</h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Call the tournament's big questions. Odds + the points each pick is worth come from Kalshi
-          and lock ~2 days before kickoff — bolder correct calls earn more. (Leaderboard coming soon.)
+          Predict the tournament's biggest questions. The % next to each option is its live
+          market-implied chance from Kalshi, and the points show what a correct pick is worth — the
+          less likely your pick, the more it pays. Odds and point values lock in about two days
+          before kickoff. A pool leaderboard is coming soon.
         </p>
         <div className="mt-3 flex gap-1">
           {(["futures", "games"] as const).map((t) => (
@@ -66,21 +82,57 @@ export function PredictionsView() {
 }
 
 function FuturesTab() {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [picks, setPicks] = useState<Picks>({});
-  useEffect(() => setPicks(loadPicks()), []);
+  const syncedRef = useRef(false);
+
+  // Guest / first paint: hydrate from localStorage.
+  useEffect(() => setPicks(loadLocalPicks()), []);
+
+  // On sign-in: merge server picks with any local-only ones (server wins for
+  // overlapping markets), push local-only picks up, and cache the result.
+  useEffect(() => {
+    const sb = getSupabaseBrowser();
+    if (!sb || !userId) {
+      syncedRef.current = false;
+      return;
+    }
+    if (syncedRef.current) return;
+    syncedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const server = await loadMyPicks(sb, userId);
+      if (cancelled) return;
+      const local = loadLocalPicks();
+      const localOnly = Object.keys(local).filter((k) => !(k in server));
+      const merged: Picks = { ...local, ...server };
+      setPicks(merged);
+      saveLocalPicks(merged);
+      // Migrate guest picks the account doesn't have yet.
+      for (const k of localOnly) {
+        const p = local[k];
+        await saveMyPick(sb, userId, k, { ...p, points: pointsFor(p.prob) });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const setPick = (futureKey: string, pick: Pick | null) => {
     setPicks((prev) => {
       const next = { ...prev };
-      if (pick) next[futureKey] = pick;
+      if (pick) next[futureKey] = { ...pick, points: pointsFor(pick.prob) };
       else delete next[futureKey];
-      try {
-        localStorage.setItem(PICKS_KEY, JSON.stringify(next));
-      } catch {
-        /* ignore */
-      }
+      saveLocalPicks(next);
       return next;
     });
+    const sb = getSupabaseBrowser();
+    if (sb && userId) {
+      if (pick) void saveMyPick(sb, userId, futureKey, { ...pick, points: pointsFor(pick.prob) });
+      else void deleteMyPick(sb, userId, futureKey);
+    }
   };
 
   return (
@@ -89,8 +141,10 @@ function FuturesTab() {
         <FutureCard key={f.key} futureKey={f.key} pick={picks[f.key] ?? null} onPick={(p) => setPick(f.key, p)} />
       ))}
       <p className="text-[11px] text-slate-400">
-        Picks save on this device for now. Odds may read “—” until betting markets fill in closer to
-        kickoff.
+        {userId
+          ? "Saved to your account — your picks sync across devices."
+          : "Picks save on this device. Sign in to sync them across devices."}{" "}
+        Odds may read “—” until betting markets fill in closer to kickoff.
       </p>
     </div>
   );
@@ -156,14 +210,17 @@ function FutureCard({
               return (
                 <button
                   key={o.ticker}
-                  onClick={() => onPick({ ticker: o.ticker, label: o.label, prob: o.prob })}
+                  onClick={() => onPick({ ticker: o.ticker, label: o.label, prob: o.prob, flagIso2: o.flagIso2 })}
                   className={`flex w-full items-center justify-between rounded-lg border px-3 py-1.5 text-left text-sm transition ${
                     selected
                       ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10 font-semibold"
                       : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
                   }`}
                 >
-                  <span className="truncate">{o.label}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    {o.flagIso2 && <span className="shrink-0 leading-none">{flagFromIso2(o.flagIso2)}</span>}
+                    <span className="truncate">{o.label}</span>
+                  </span>
                   <span className="flex shrink-0 items-center gap-2 tabular-nums">
                     <span className="text-slate-500">{pct(o.prob)}</span>
                     {pts(o.prob) != null && (
@@ -189,7 +246,8 @@ function FutureCard({
 
       {pick && (
         <p className="mt-2 text-[11px] text-[var(--wc-accent)]">
-          Your pick: <span className="font-semibold">{pick.label}</span>
+          Your pick: {pick.flagIso2 ? `${flagFromIso2(pick.flagIso2)} ` : ""}
+          <span className="font-semibold">{pick.label}</span>
           {pick.prob != null && ` · locked at ${pick.prob}%`}
         </p>
       )}

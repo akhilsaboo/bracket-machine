@@ -4,7 +4,7 @@
 
 ## 1. The 30-second pitch
 
-**Bracket Machine** is your interactive 2026 World Cup bracket. Pick scores for every group-stage match → the standings update live (full FIFA tiebreakers included) → your knockout bracket builds itself via the official Annex C allocation. Don't want to click through all 72 matches? Let an **AI persona** fill it for you. Keep **multiple brackets**, compete with friends in **pools**, and tap **📰 Insights** on any match for an AI preview (with a 30-second audio recap).
+**Bracket Machine** is your interactive 2026 World Cup bracket. Pick scores for every group-stage match → the standings update live (full FIFA tiebreakers included) → your knockout bracket builds itself via the official Annex C allocation. Don't want to click through all 72 matches? Let an **AI persona** fill it for you. Keep **multiple brackets**, compete with friends in **pools**, call the tournament's big **🔮 Predictions** against live betting odds, and tap **📰 Insights** on any match for an AI preview (with a 30-second audio recap).
 
 Live at **https://bracketmachine.app**.
 
@@ -15,7 +15,7 @@ Live at **https://bracketmachine.app**.
 3. **Or auto-fill it (see §3).** On your first visit a pop-up offers to fill the whole bracket for you — pick an AI persona and tweak from there.
 4. **See your bracket.** Once all 12 groups are filled, a **"See your bracket →"** button takes you to the Bracket tab. (Nothing locks — every pick stays editable until that match kicks off.)
 5. **Bracket tab.** The Round of 32 is already filled in from your group results. Click teams to advance them through R16 → QF → SF → Final.
-6. **Submit Bracket.** Pick your champion → confirm a tiebreaker (predict total goals scored in the tournament).
+6. **Submit Bracket.** Pick your champion → optionally enter a tiebreaker (predict total goals scored in the tournament). The tiebreaker is optional — skip it and you'll just lose any points tie to someone who guessed.
 
 ## 3. Auto-fill with an AI persona
 
@@ -56,13 +56,21 @@ Near a match, insights pull in current form and news; further out they're quick 
 **Pools tab → Create a pool** → you get a 6-character invite code and a shareable link (`https://bracketmachine.app/?join=ABC123`).
 - Anyone you send the link to can sign in and join in one click.
 - **Your entry:** choose *which* of your brackets competes in each pool (you can use the same bracket in several pools, or a different one in each).
-- The pool detail shows a **leaderboard** combining group + knockout points.
+- The pool detail shows two leaderboards: a **🏆 Bracket** board combining group + knockout points, and a **🎯 Predictions** board for Futures picks (see §8).
 - Click another member's row (only after the knockout starts, June 28) to see their full bracket read-only.
 - Pool owners can delete the pool; members can leave anytime.
 
-## 8. Awards tab
+## 8. Predictions tab (🔮 Futures)
 
-Call the tournament's individual awards — Golden Boot (top scorer), Golden Glove (best keeper), Best Player (Golden Ball), Best Young Player. Pick a team for each; saved with your active bracket and locked once the tournament starts. (Player-level picks and award scoring are planned.)
+Call the tournament's big questions: **World Cup Winner, Golden Boot** (top scorer), **Golden Ball** (best player), **Golden Glove** (best keeper), **Messi vs Ronaldo**, **furthest-advancing host nation**, and **first-time winner**.
+
+- Each option shows its **live market-implied chance** from Kalshi (and a country flag, so you know which nation a player represents). Options sort by likelihood, favorites first.
+- Picks are **odds-weighted**: a correct pick earns `round(10 ÷ chance)`, capped at 100 — the bolder (less likely) your correct call, the more it's worth. Each option shows the points it would pay.
+- Picks **save to your account** and sync across devices (guests save locally and migrate up on sign-in).
+- Each pool gets a **🎯 Predictions leaderboard** alongside the bracket board. Before games resolve it ranks by *potential* points; once markets settle it switches to points earned on correct calls.
+- Odds read "—" for markets that don't have a real price yet; they fill in as betting markets get liquid closer to kickoff, then lock ~2 days before the tournament.
+
+A **⚔️ Games** sub-tab (per-knockout-match predictions) unlocks when the knockout rounds begin (June 28).
 
 ## 9. How scoring works
 
@@ -78,7 +86,9 @@ Call the tournament's individual awards — Golden Boot (top scorer), Golden Glo
 - 3rd-place playoff: **+160**
 - Final / Champion: **+320**
 
-**Ties** broken by: total points → knockout points → exact-score count → tiebreaker total-goals.
+**Ties** broken by: total points → knockout points → exact-score count → tiebreaker total-goals (optional; an unset tiebreaker loses to any guess).
+
+**Predictions / Futures** — odds-weighted, scored separately on the 🎯 Predictions leaderboard: a correct pick earns `round(10 ÷ chance)`, capped at 100 (so a coin-flip ≈ 20, a 10% longshot = 100). Wrong picks score 0.
 
 ## 10. FAQ
 

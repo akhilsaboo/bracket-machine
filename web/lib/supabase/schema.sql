@@ -199,3 +199,31 @@ drop policy if exists "match_insights: public update" on public.match_insights;
 create policy "match_insights: public read"   on public.match_insights for select using (true);
 create policy "match_insights: public insert" on public.match_insights for insert with check (true);
 create policy "match_insights: public update" on public.match_insights for update using (true) with check (true);
+
+-- 5. Prediction picks (Futures tab) ---------------------------------------------
+-- One row per (user, market). Cross-device + visible to pool-mates for the
+-- per-pool Predictions leaderboard. prob_at_pick is the implied % frozen when the
+-- pick was made; points is the potential payout = round(10/(p/100)) capped 100.
+-- correct is null until the market resolves (Phase: resolution job).
+create table if not exists public.prediction_picks (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  market_key text not null,         -- our FUTURES key (e.g. 'winner')
+  outcome_ticker text not null,     -- Kalshi market ticker (or '<series>-NO')
+  outcome_label text not null,
+  flag_iso2 text not null default '',
+  prob_at_pick integer,             -- 0..100, null when no odds yet
+  points integer,                   -- potential points, null when no odds yet
+  correct boolean,                  -- null = unresolved, true/false once settled
+  picked_at timestamptz not null default now(),
+  primary key (user_id, market_key)
+);
+create index if not exists prediction_picks_user_idx on public.prediction_picks(user_id);
+alter table public.prediction_picks enable row level security;
+
+drop policy if exists "prediction_picks: owner all" on public.prediction_picks;
+create policy "prediction_picks: owner all" on public.prediction_picks
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- Pool-mates can read each other's picks (for the Predictions leaderboard).
+drop policy if exists "prediction_picks: pool mates read" on public.prediction_picks;
+create policy "prediction_picks: pool mates read" on public.prediction_picks for select
+  using (user_id = auth.uid() or public.shares_pool_with(user_id));

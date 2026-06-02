@@ -26,6 +26,22 @@ function regionalIndicator(iso2: string): string {
   return [...iso2].map((c) => String.fromCodePoint(0x1f1e6 + (c.charCodeAt(0) - 65))).join("");
 }
 
+// UK home-nation tag-sequence flags (used by predictions, where labels come
+// from Kalshi rather than our FIFA codes).
+const ISO_SUBDIVISION: Record<string, string> = {
+  ENG: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}",
+  SCO: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}",
+  WLS: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}",
+};
+
+/** Emoji flag from an ISO 3166-1 alpha-2 code (or ENG/SCO/WLS). "" if unknown. */
+export function flagFromIso2(code?: string | null): string {
+  if (!code) return "";
+  if (ISO_SUBDIVISION[code]) return ISO_SUBDIVISION[code];
+  if (code.length === 2) return regionalIndicator(code.toUpperCase());
+  return "";
+}
+
 export function flag(code: string): string {
   const iso2 = ISO2[code];
   if (!iso2) return "\u{1F3F3}️"; // white flag fallback
