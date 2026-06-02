@@ -17,7 +17,7 @@ import { AutoFillModal } from "./AutoFillModal";
 const AUTOFILL_SEEN_KEY = "wc2026-autofill-seen";
 
 export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
-  const { predictions, setManyScores, setManyKnockout, hydrated } = usePredictions();
+  const { predictions, setManyScores, setManyKnockout, setBracketSubmitted, hydrated } = usePredictions();
   const { user, requestSignIn } = useAuth();
   const complete = allGroupsComplete(predictions);
 
@@ -43,9 +43,12 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
     // Knockout winners resolve from the just-filled standings, so merge the new
     // scores in before walking the bracket.
     setManyKnockout(buildKnockoutWinners(mode, { ...predictions, ...groupScores }, opts));
+    // A whole new autofill rewrites the bracket, so it reverts to a DRAFT — the
+    // user must re-submit for it to count as a pool entry. (Small manual edits,
+    // by contrast, leave the submitted status intact and just sync through.)
+    setBracketSubmitted(false);
     dismissAutoFill();
-    // Autofill produces a DRAFT — send the user to review + submit it (it isn't a
-    // usable pool entry until submitted).
+    // Send the user to review + submit the freshly filled bracket.
     onSubmitted?.();
   };
   return (

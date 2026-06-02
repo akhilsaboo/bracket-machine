@@ -62,7 +62,40 @@ export function ScheduleView() {
         )}
       </div>
 
+      {isPreview && <PreviewLegend />}
+
       {!dated ? <FallbackByMatchday /> : <DatedSchedule now={now} isPreview={isPreview} />}
+    </div>
+  );
+}
+
+function PreviewLegend() {
+  return (
+    <div className="rounded-xl border border-[var(--wc-accent)]/30 bg-[var(--wc-accent)]/5 p-3 text-xs text-slate-600 dark:text-slate-300">
+      <p className="mb-2 font-semibold text-slate-700 dark:text-slate-200">
+        Preview mode: simulated results so you can see how scoring will look.
+      </p>
+      <p className="mb-2">
+        <strong>“Actual”</strong> = the match's real final score (faked here for the demo). Each pick
+        is graded against it:
+      </p>
+      <ul className="space-y-1">
+        <li>
+          <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded bg-emerald-500 text-[10px] text-white">★</span>
+          <strong className="text-emerald-700 dark:text-emerald-300">Green</strong> — exact score (you
+          nailed both the winner and the scoreline). <span className="text-slate-400">+10</span>
+        </li>
+        <li>
+          <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded bg-amber-400 text-[10px] text-white">✓</span>
+          <strong className="text-amber-600 dark:text-amber-400">Yellow</strong> — right result (correct
+          winner or draw, wrong score). <span className="text-slate-400">+5</span>
+        </li>
+        <li>
+          <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded bg-red-500 text-[10px] text-white">✗</span>
+          <strong className="text-red-600 dark:text-red-400">Red</strong> — wrong result.
+          <span className="text-slate-400"> +0</span>
+        </li>
+      </ul>
     </div>
   );
 }

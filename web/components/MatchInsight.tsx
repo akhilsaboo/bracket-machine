@@ -100,7 +100,7 @@ export function MatchInsightButton({
       <button
         type="button"
         onClick={openPanel}
-        title="Matchup insights"
+        title="AI insights"
         className={
           className ??
           "shrink-0 rounded p-1 text-sm text-slate-400 transition hover:text-[var(--wc-accent)]"
@@ -122,7 +122,7 @@ export function MatchInsightButton({
           >
             <div className="brand-gradient px-5 py-4 text-white">
               <div className="text-[11px] font-bold uppercase tracking-widest opacity-90">
-                Matchup insight
+                AI insight
               </div>
               <div className="mt-1 text-lg font-extrabold">
                 {flag(homeCode)} {data?.homeName ?? homeCode} <span className="opacity-70">vs</span>{" "}

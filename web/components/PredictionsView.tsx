@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FUTURES, fetchFuture, type KalshiMarketData } from "@/lib/kalshi";
-import { flagFromIso2 } from "@/lib/flags";
-import { isKnockoutStarted } from "@/lib/results";
+import { flag, flagFromIso2 } from "@/lib/flags";
+import { isKnockoutStarted, realRound32, buildMockTournament } from "@/lib/results";
+import { resolveKnockoutFrom, type KnockoutWinners, type KOMatch } from "@/lib/knockout";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
@@ -36,20 +37,76 @@ function saveLocalPicks(p: Picks) {
   }
 }
 
+type SetPick = (marketKey: string, pick: Pick | null) => void;
+
+// Shared picks store for both sub-tabs: localStorage for guests, Supabase
+// (cross-device + pool leaderboard) once signed in, merging on sign-in.
+function usePredictionPicks(): { picks: Picks; setPick: SetPick; userId: string | null } {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const [picks, setPicks] = useState<Picks>({});
+  const syncedRef = useRef(false);
+
+  useEffect(() => setPicks(loadLocalPicks()), []);
+
+  useEffect(() => {
+    const sb = getSupabaseBrowser();
+    if (!sb || !userId) {
+      syncedRef.current = false;
+      return;
+    }
+    if (syncedRef.current) return;
+    syncedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const server = await loadMyPicks(sb, userId);
+      if (cancelled) return;
+      const local = loadLocalPicks();
+      const localOnly = Object.keys(local).filter((k) => !(k in server));
+      const merged: Picks = { ...local, ...server };
+      setPicks(merged);
+      saveLocalPicks(merged);
+      for (const k of localOnly) await saveMyPick(sb, userId, k, local[k]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const setPick: SetPick = (marketKey, pick) => {
+    // Futures cards carry no points (derive from odds); Games carry fixed points.
+    const withPoints = pick ? { ...pick, points: pick.points ?? pointsFor(pick.prob) } : null;
+    setPicks((prev) => {
+      const next = { ...prev };
+      if (withPoints) next[marketKey] = withPoints;
+      else delete next[marketKey];
+      saveLocalPicks(next);
+      return next;
+    });
+    const sb = getSupabaseBrowser();
+    if (sb && userId) {
+      if (withPoints) void saveMyPick(sb, userId, marketKey, withPoints);
+      else void deleteMyPick(sb, userId, marketKey);
+    }
+  };
+
+  return { picks, setPick, userId };
+}
+
 export function PredictionsView() {
   const { now } = usePredictions();
   const [tab, setTab] = useState<"futures" | "games">("futures");
   const gamesOpen = isKnockoutStarted(now);
+  const { picks, setPick, userId } = usePredictionPicks();
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-lg font-extrabold">Predictions</h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Predict the tournament's biggest questions. The % next to each option is its live
-          market-implied chance from Kalshi, and the points show what a correct pick is worth — the
-          less likely your pick, the more it pays. Odds and point values lock in about two days
-          before kickoff. A pool leaderboard is coming soon.
+          {tab === "futures"
+            ? "Predict the tournament's biggest questions. The % next to each option is its live market-implied chance from Kalshi, and the points show what a correct pick is worth — the less likely your pick, the more it pays. Odds and point values lock in about two days before kickoff."
+            : "Call every knockout match. Pick the winner of each tie as the bracket fills in; correct calls are worth more the deeper the round. Picks lock once a match is played."}
         </p>
         <div className="mt-3 flex gap-1">
           {(["futures", "games"] as const).map((t) => (
@@ -69,72 +126,19 @@ export function PredictionsView() {
       </div>
 
       {tab === "futures" ? (
-        <FuturesTab />
+        <FuturesTab picks={picks} setPick={setPick} userId={userId} />
+      ) : gamesOpen ? (
+        <GamesTab picks={picks} setPick={setPick} userId={userId} />
       ) : (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
-          {gamesOpen
-            ? "Per-game predictions are coming soon."
-            : "⚔️ Game-by-game predictions unlock when the knockout rounds begin (Jun 28)."}
+          ⚔️ Game-by-game predictions unlock when the knockout rounds begin (Jun 28).
         </div>
       )}
     </div>
   );
 }
 
-function FuturesTab() {
-  const { user } = useAuth();
-  const userId = user?.id ?? null;
-  const [picks, setPicks] = useState<Picks>({});
-  const syncedRef = useRef(false);
-
-  // Guest / first paint: hydrate from localStorage.
-  useEffect(() => setPicks(loadLocalPicks()), []);
-
-  // On sign-in: merge server picks with any local-only ones (server wins for
-  // overlapping markets), push local-only picks up, and cache the result.
-  useEffect(() => {
-    const sb = getSupabaseBrowser();
-    if (!sb || !userId) {
-      syncedRef.current = false;
-      return;
-    }
-    if (syncedRef.current) return;
-    syncedRef.current = true;
-    let cancelled = false;
-    (async () => {
-      const server = await loadMyPicks(sb, userId);
-      if (cancelled) return;
-      const local = loadLocalPicks();
-      const localOnly = Object.keys(local).filter((k) => !(k in server));
-      const merged: Picks = { ...local, ...server };
-      setPicks(merged);
-      saveLocalPicks(merged);
-      // Migrate guest picks the account doesn't have yet.
-      for (const k of localOnly) {
-        const p = local[k];
-        await saveMyPick(sb, userId, k, { ...p, points: pointsFor(p.prob) });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  const setPick = (futureKey: string, pick: Pick | null) => {
-    setPicks((prev) => {
-      const next = { ...prev };
-      if (pick) next[futureKey] = { ...pick, points: pointsFor(pick.prob) };
-      else delete next[futureKey];
-      saveLocalPicks(next);
-      return next;
-    });
-    const sb = getSupabaseBrowser();
-    if (sb && userId) {
-      if (pick) void saveMyPick(sb, userId, futureKey, { ...pick, points: pointsFor(pick.prob) });
-      else void deleteMyPick(sb, userId, futureKey);
-    }
-  };
-
+function FuturesTab({ picks, setPick, userId }: { picks: Picks; setPick: SetPick; userId: string | null }) {
   return (
     <div className="space-y-3">
       {FUTURES.map((f) => (
@@ -291,6 +295,183 @@ function BinaryPicker({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// --- ⚔️ Games: per-knockout-match winner predictions -------------------------
+
+// Knockout round label + base points (doubles each round, same scale as the
+// bracket: R32 20 → R16 40 → QF 80 → SF/3rd 160 → Final 320).
+function koMeta(no: number): { round: string; base: number } {
+  if (no >= 73 && no <= 88) return { round: "Round of 32", base: 20 };
+  if (no >= 89 && no <= 96) return { round: "Round of 16", base: 40 };
+  if (no >= 97 && no <= 100) return { round: "Quarter-finals", base: 80 };
+  if (no === 101 || no === 102) return { round: "Semi-finals", base: 160 };
+  if (no === 103) return { round: "Third-place playoff", base: 160 };
+  return { round: "Final", base: 320 };
+}
+
+// Points for a correct game pick: the round's base × a Kalshi odds weight, so
+// bolder (underdog) calls in a round pay more. prob = market-implied % for the
+// picked team — null until per-game markets open (same schedule as Futures), in
+// which case it falls back to the flat base. Coin-flip (50%) = 1×; favorites pay
+// less (floor 0.5×), underdogs more (cap 3×).
+function gamePoints(no: number, prob: number | null | undefined): number {
+  const { base } = koMeta(no);
+  if (prob == null || prob <= 0) return base;
+  const weight = Math.min(3, Math.max(0.5, 50 / prob));
+  return Math.round(base * weight);
+}
+const KO_ORDER = [
+  74, 77, 73, 75, 83, 84, 81, 82, 76, 78, 79, 80, 86, 88, 85, 87, // R32
+  89, 90, 93, 94, 91, 92, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104,
+];
+
+function GamesTab({ picks, setPick }: { picks: Picks; setPick: SetPick; userId: string | null }) {
+  const { now, isPreview } = usePredictions();
+
+  // Real knockout state: R32 from real results (preview-derived now; swap for the
+  // live feed later — null in normal mode), with real winners advancing the tree
+  // so matchups unlock as games are played.
+  const r32 = realRound32(now, isPreview);
+  const realWinners: KnockoutWinners = useMemo(() => {
+    if (!isPreview) return {};
+    const out: KnockoutWinners = {};
+    for (const [k, v] of Object.entries(buildMockTournament(now).knockoutWinners)) out[k] = v;
+    return out;
+  }, [isPreview, now]);
+  const resolved = useMemo(
+    () => (r32 ? resolveKnockoutFrom(r32, realWinners) : null),
+    [r32, realWinners],
+  );
+
+  if (!resolved) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+        Knockout matchups appear here once the group stage finishes and the Round of 32 is set.
+      </div>
+    );
+  }
+
+  // Group determined matchups (both teams known) by round, in bracket order.
+  const sections: { round: string; matches: number[] }[] = [];
+  for (const no of KO_ORDER) {
+    const m = resolved.get(no);
+    if (!m || !m.home || !m.away) continue;
+    const { round } = koMeta(no);
+    const last = sections[sections.length - 1];
+    if (last && last.round === round) last.matches.push(no);
+    else sections.push({ round, matches: [no] });
+  }
+
+  if (sections.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+        No knockout matchups are set yet — check back as results come in.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {sections.map((s) => (
+        <div
+          key={s.round}
+          className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+        >
+          <header className="flex items-center justify-between bg-slate-50 px-4 py-2 dark:bg-slate-800/60">
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{s.round}</h3>
+            <span className="text-[10px] text-slate-400">{koMeta(s.matches[0]).base} pts base</span>
+          </header>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {s.matches.map((no) => (
+              <GameRow
+                key={no}
+                no={no}
+                match={resolved.get(no)!}
+                pick={picks[`game:${no}`] ?? null}
+                onPick={(p) => setPick(`game:${no}`, p)}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+      <p className="text-[11px] text-slate-400">
+        Pick the winner of each tie. A match locks and grades once it's played. Correct picks earn the
+        round's base points — doubling each round (R32 20 → Final 320) — weighted by the Kalshi market
+        odds once per-game markets open, so bolder calls pay more.
+      </p>
+    </div>
+  );
+}
+
+function GameRow({
+  no,
+  match,
+  pick,
+  onPick,
+}: {
+  no: number;
+  match: KOMatch;
+  pick: Pick | null;
+  onPick: (p: Pick | null) => void;
+}) {
+  const { base } = koMeta(no);
+  const winner = match.winner; // real result (null until played)
+  const played = !!winner;
+  const teams = [match.home!, match.away!];
+  // Per-team market odds aren't available until per-game Kalshi markets open
+  // (same schedule as Futures); until then prob is null → points = round base.
+  const teamProb = (_t: KOMatch["home"]): number | null => null;
+  const earned = pick?.points ?? base;
+
+  return (
+    <div className="px-3 py-2">
+      <div className="grid grid-cols-2 gap-2">
+        {teams.map((t) => {
+          const selected = pick?.ticker === t.code;
+          const isWinner = played && winner!.code === t.code;
+          const showResult = played && selected;
+          const prob = teamProb(t);
+          return (
+            <button
+              key={t.code}
+              disabled={played}
+              onClick={() => onPick(selected ? null : { ticker: t.code, label: t.name, prob, points: gamePoints(no, prob) })}
+              className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                isWinner
+                  ? "border-emerald-400 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/30"
+                  : selected
+                    ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10 font-semibold"
+                    : "border-slate-200 dark:border-slate-700"
+              } ${played ? "cursor-default" : "hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5"}`}
+            >
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="shrink-0 leading-none">{flag(t.code)}</span>
+                <span className="truncate">{t.name}</span>
+              </span>
+              {showResult && (
+                <span className="shrink-0 text-xs font-bold">
+                  {isWinner ? (
+                    <span className="text-emerald-600 dark:text-emerald-400">✓ +{earned}</span>
+                  ) : (
+                    <span className="text-red-500">✗</span>
+                  )}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {played && !pick && (
+        <p className="mt-1 text-center text-[11px] text-slate-400">
+          No pick · winner: {flag(winner!.code)} {winner!.name}
+        </p>
+      )}
+      {!played && (
+        <p className="mt-1 text-right text-[11px] text-slate-400">worth {base} pts</p>
+      )}
     </div>
   );
 }
