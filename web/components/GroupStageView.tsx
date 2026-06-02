@@ -44,6 +44,9 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
     // scores in before walking the bracket.
     setManyKnockout(buildKnockoutWinners(mode, { ...predictions, ...groupScores }, opts));
     dismissAutoFill();
+    // Autofill produces a DRAFT — send the user to review + submit it (it isn't a
+    // usable pool entry until submitted).
+    onSubmitted?.();
   };
   return (
     <div className="space-y-6">

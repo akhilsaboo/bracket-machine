@@ -319,10 +319,7 @@ function PoolDetail({
       return;
     }
     setEntryError(null);
-    const fail = (m: string) => {
-      setEntryError(m);
-      if (typeof window !== "undefined") window.alert(m); // loud, temporary diagnostic
-    };
+    const fail = (m: string) => setEntryError(m);
     try {
       const bracketErr = await upsertBracket(sb, currentUserId, rec);
       if (bracketErr) {
@@ -546,12 +543,11 @@ function PoolDetail({
           currentId={myEntryId}
           onPick={pickEntry}
           onCreate={() => {
-            const rec = createBracket();
-            if (rec) {
-              void assignEntry(rec);
-              // Take them to the Group Stage tab to actually fill out the new bracket.
-              onGoToGroupTab?.();
-            }
+            // Make a fresh bracket and send them to fill + submit it; they come
+            // back and pick it once it's submitted (drafts can't be entries).
+            createBracket();
+            setChooserOpen(false);
+            onGoToGroupTab?.();
           }}
           onClose={() => setChooserOpen(false)}
         />
@@ -720,32 +716,38 @@ function ChooseEntryModal({
         <div className="brand-gradient px-5 py-4 text-white">
           <div className="text-lg font-extrabold">Choose your entry</div>
           <p className="text-xs text-white/80">
-            Which bracket competes in this pool? You can change it until the first match.
+            Only a <strong>submitted</strong> bracket can compete. You can change your entry until the first match.
           </p>
         </div>
         <div className="max-h-[55vh] space-y-1 overflow-y-auto p-3">
           {brackets.map((b) => (
             <button
               key={b.id}
-              onClick={() => onPick(b.id)}
-              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
-                b.id === currentId
-                  ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10"
-                  : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
+              onClick={() => b.submitted && onPick(b.id)}
+              disabled={!b.submitted}
+              title={b.submitted ? "" : "Submit this bracket first (Bracket tab → Submit)"}
+              className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                !b.submitted
+                  ? "cursor-not-allowed border-slate-200 opacity-50 dark:border-slate-700"
+                  : b.id === currentId
+                    ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10"
+                    : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
               }`}
             >
               <span className="truncate font-medium">
                 {b.kind === "second_chance" ? "🔄 " : ""}
                 {b.name}
               </span>
-              <span className="shrink-0 text-[11px] tabular-nums text-slate-400">{b.predicted}/72</span>
+              <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
+                {b.submitted ? `${b.predicted}/72` : "Draft — submit first"}
+              </span>
             </button>
           ))}
           <button
             onClick={onCreate}
             className="mt-1 flex w-full items-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-left text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
           >
-            ＋ Create a new bracket &amp; enter it
+            ＋ Create a new bracket (fill &amp; submit it, then enter)
           </button>
         </div>
       </div>

@@ -48,6 +48,7 @@ export interface BracketSummary {
   kind: BracketKind;
   createdAt: string;
   predicted: number; // group matches with both scores filled (0..72)
+  submitted: boolean; // finalized via "Submit bracket" (required to enter a pool)
 }
 
 export const MAX_BRACKETS = 25;
@@ -374,6 +375,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
       kind: r.kind,
       createdAt: r.createdAt,
       predicted: predictedCount(r.state),
+      submitted: r.state.bracketSubmitted,
     }));
 
   const now = previewISO ? new Date(previewISO) : new Date(nowMs);
