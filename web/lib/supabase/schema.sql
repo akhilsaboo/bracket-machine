@@ -130,6 +130,21 @@ begin
 end;
 $$;
 
+-- Transfer pool ownership to another member (current owner only). Security definer
+-- so it can change owner_id past the owner-only update policy's WITH CHECK.
+create or replace function public.transfer_pool_ownership(pid uuid, new_owner uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.pools where id = pid and owner_id = auth.uid()) then
+    raise exception 'only the current owner can transfer ownership';
+  end if;
+  if not exists (select 1 from public.pool_members where pool_id = pid and user_id = new_owner) then
+    raise exception 'the new owner must be a member of the pool';
+  end if;
+  update public.pools set owner_id = new_owner where id = pid;
+end;
+$$;
+
 -- RLS — pools
 drop policy if exists "pools: member or owner read" on public.pools;
 create policy "pools: member or owner read" on public.pools for select

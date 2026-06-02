@@ -15,6 +15,8 @@ import {
 } from "@/lib/results";
 import { scoreEverything } from "@/lib/scoring";
 import { upsertBracket } from "@/lib/brackets";
+import { champion, resolveKnockout } from "@/lib/knockout";
+import { flag } from "@/lib/flags";
 import { MemberBracketView } from "./MemberBracketView";
 import {
   createPool,
@@ -26,6 +28,7 @@ import {
   listMyPools,
   leavePool,
   setPoolBracket,
+  transferPoolOwnership,
   type MemberBracket,
   type Pool,
   type PoolMember,
@@ -267,6 +270,11 @@ function PoolDetail({
   // Entries lock once the first match kicks off (ESPN-style).
   const locked = tournamentHasStarted(now);
   const myEntry = myBrackets.find((b) => b.id === myEntryId) ?? null;
+  // The champion the entry bracket predicts (shown as "your pick").
+  const myEntryRecord = myEntryId ? allRecords().find((r) => r.id === myEntryId) : null;
+  const myChampion = myEntryRecord
+    ? champion(resolveKnockout(myEntryRecord.state.predictions, myEntryRecord.state.knockout))
+    : null;
   const [chooserOpen, setChooserOpen] = useState(false);
 
   useEffect(() => {
@@ -295,6 +303,7 @@ function PoolDetail({
   }, [pool.id, reloadKey]);
 
   const [entryError, setEntryError] = useState<string | null>(null);
+  const [transferTo, setTransferTo] = useState("");
 
   // Assign a bracket as this pool's entry. Upserts the bracket FIRST (a just-
   // created one may not have synced yet → FK error otherwise), then links it.
@@ -305,9 +314,16 @@ function PoolDetail({
     await upsertBracket(sb, currentUserId, rec);
     const ok = await setPoolBracket(sb, pool.id, currentUserId, rec.id);
     if (!ok) {
-      setEntryError("Couldn't save your entry. Make sure web/lib/supabase/schema.sql has been run in Supabase, then try again.");
+      setEntryError(
+        "Couldn't save your entry — the update didn't take. If this keeps happening, re-run web/lib/supabase/schema.sql in Supabase.",
+      );
       return;
     }
+    // Optimistically reflect it so the UI updates immediately (and the chooser
+    // doesn't re-open while the reload is in flight).
+    setMembers((prev) =>
+      prev.map((m) => (m.user_id === currentUserId ? { ...m, bracket_id: rec.id } : m)),
+    );
     setChooserOpen(false);
     setReloadKey((k) => k + 1);
   };
@@ -420,6 +436,22 @@ function PoolDetail({
     onBack();
   };
 
+  const onTransfer = async () => {
+    const sb = getSupabaseBrowser();
+    if (!sb || !transferTo) return;
+    const target = members.find((m) => m.user_id === transferTo);
+    const name = target?.display_name ?? "this member";
+    if (!confirm(`Transfer ownership of "${pool.name}" to ${name}? You'll become a regular member.`)) return;
+    const res = await transferPoolOwnership(sb, pool.id, transferTo);
+    if (!res.ok) {
+      alert(res.error ?? "Couldn't transfer ownership.");
+      return;
+    }
+    onBack(); // ownership changed — return to the list (it refreshes)
+  };
+
+  const otherMembers = members.filter((m) => m.user_id !== currentUserId);
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <button onClick={onBack} className="text-xs text-slate-400 hover:text-[var(--wc-accent)]">
@@ -461,17 +493,24 @@ function PoolDetail({
               : "The bracket you're competing with. Lockable change until the first match (Jun 11)."}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="max-w-[12rem] truncate text-sm font-medium">
-            {myEntry ? (
-              <>
+        <div className="flex shrink-0 items-center gap-3">
+          {myEntry ? (
+            <div className="text-right">
+              {myChampion ? (
+                <div className="text-sm font-bold">
+                  Your pick: {flag(myChampion.code)} {myChampion.name}
+                </div>
+              ) : (
+                <div className="text-sm font-medium text-slate-500">No champion picked yet</div>
+              )}
+              <div className="max-w-[12rem] truncate text-[11px] text-slate-400">
                 {myEntry.kind === "second_chance" ? "🔄 " : ""}
                 {myEntry.name}
-              </>
-            ) : (
-              <span className="text-slate-400">No entry yet</span>
-            )}
-          </span>
+              </div>
+            </div>
+          ) : (
+            <span className="text-sm text-slate-400">No entry yet</span>
+          )}
           {!locked && (
             <button
               onClick={() => setChooserOpen(true)}
@@ -562,19 +601,52 @@ function PoolDetail({
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         {isOwner ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Delete pool</div>
-              <p className="text-xs text-slate-500">
-                Removes the pool for everyone. Members keep their brackets.
-              </p>
-            </div>
-            <button
-              onClick={onDelete}
-              className="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700"
+          <div className="space-y-3">
+            {otherMembers.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
+                <div>
+                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Transfer ownership
+                  </div>
+                  <p className="text-xs text-slate-500">Hand the pool to another member.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={transferTo}
+                    onChange={(e) => setTransferTo(e.target.value)}
+                    className="rounded-md border border-slate-300 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-[var(--wc-accent)] dark:border-slate-700"
+                  >
+                    <option value="">Choose member…</option>
+                    {otherMembers.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.display_name ?? "Anonymous"}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={onTransfer}
+                    disabled={!transferTo}
+                    className="rounded-md bg-slate-700 px-3 py-1.5 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-40 dark:bg-slate-600"
+                  >
+                    Transfer
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Delete pool</div>
+                <p className="text-xs text-slate-500">
+                  Removes the pool for everyone. Members keep their brackets.
+                </p>
+              </div>
+              <button
+                onClick={onDelete}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700"
             >
-              Delete pool
-            </button>
+                Delete pool
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -123,20 +123,39 @@ export async function getPoolMembers(
   });
 }
 
-/** Attribute one of my brackets to a pool (or clear it with null). */
+/** Attribute one of my brackets to a pool (or clear it with null). Returns false
+ *  if the update errored OR matched no row (so the caller can surface it). */
 export async function setPoolBracket(
   sb: SupabaseClient,
   poolId: string,
   userId: string,
   bracketId: string | null,
 ): Promise<boolean> {
-  const { error } = await sb
+  // Upsert (not just update) so it works whether or not the membership row is
+  // already present/visible — (pool_id, user_id) is the primary key.
+  const { data, error } = await sb
     .from("pool_members")
-    .update({ bracket_id: bracketId })
-    .eq("pool_id", poolId)
-    .eq("user_id", userId);
-  if (error) console.error("setPoolBracket error:", error);
-  return !error;
+    .upsert({ pool_id: poolId, user_id: userId, bracket_id: bracketId }, { onConflict: "pool_id,user_id" })
+    .select("user_id");
+  if (error) {
+    console.error("setPoolBracket error:", error);
+    return false;
+  }
+  return (data?.length ?? 0) > 0;
+}
+
+/** Transfer pool ownership to another member (owner-only; validated server-side). */
+export async function transferPoolOwnership(
+  sb: SupabaseClient,
+  poolId: string,
+  newOwnerId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await sb.rpc("transfer_pool_ownership", { pid: poolId, new_owner: newOwnerId });
+  if (error) {
+    console.error("transferPoolOwnership error:", error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 
 /** Fetch specific brackets by id (the ones attributed to a pool). */
