@@ -267,8 +267,10 @@ function PoolDetail({
 
   // My attributed bracket id in THIS pool (null until set).
   const myEntryId = members.find((m) => m.user_id === currentUserId)?.bracket_id ?? null;
-  // Entries lock once the first match kicks off (ESPN-style).
-  const locked = tournamentHasStarted(now);
+  // Entries lock once the first match kicks off (ESPN-style). This is a REAL-world
+  // deadline, so use real time — not the preview clock — otherwise previewing
+  // tournament outcomes would wrongly lock entry assignment during testing.
+  const locked = tournamentHasStarted(new Date());
   const myEntry = myBrackets.find((b) => b.id === myEntryId) ?? null;
   // The champion the entry bracket predicts (shown as "your pick").
   const myEntryRecord = myEntryId ? allRecords().find((r) => r.id === myEntryId) : null;
@@ -311,21 +313,23 @@ function PoolDetail({
     const sb = getSupabaseBrowser();
     if (!sb) return;
     setEntryError(null);
-    await upsertBracket(sb, currentUserId, rec);
-    const ok = await setPoolBracket(sb, pool.id, currentUserId, rec.id);
-    if (!ok) {
-      setEntryError(
-        "Couldn't save your entry — the update didn't take. If this keeps happening, re-run web/lib/supabase/schema.sql in Supabase.",
+    try {
+      await upsertBracket(sb, currentUserId, rec);
+      const ok = await setPoolBracket(sb, pool.id, currentUserId, rec.id);
+      if (!ok) {
+        setEntryError("Couldn't save your entry — the write didn't take. Re-run schema.sql in Supabase, then retry.");
+        return;
+      }
+      // Optimistically reflect it so the UI updates immediately (and the chooser
+      // doesn't re-open while the reload is in flight).
+      setMembers((prev) =>
+        prev.map((m) => (m.user_id === currentUserId ? { ...m, bracket_id: rec.id } : m)),
       );
-      return;
+      setChooserOpen(false);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setEntryError(`Couldn't save your entry: ${e instanceof Error ? e.message : String(e)}`);
     }
-    // Optimistically reflect it so the UI updates immediately (and the chooser
-    // doesn't re-open while the reload is in flight).
-    setMembers((prev) =>
-      prev.map((m) => (m.user_id === currentUserId ? { ...m, bracket_id: rec.id } : m)),
-    );
-    setChooserOpen(false);
-    setReloadKey((k) => k + 1);
   };
 
   const pickEntry = (bracketId: string) => {
