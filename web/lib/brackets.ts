@@ -84,8 +84,11 @@ export async function upsertBracket(
   if (error) console.error("bracket upsert error:", error);
 }
 
-/** Remove a bracket row (used when the user deletes a bracket while signed in). */
-export async function deleteBracketRow(supabase: SupabaseClient, id: string): Promise<void> {
+/** Remove a bracket row (used when the user deletes a bracket while signed in).
+ *  Returns false if the server rejected the delete (e.g. RLS), so the caller can
+ *  avoid a local-only delete that would "reappear" on the next sync. */
+export async function deleteBracketRow(supabase: SupabaseClient, id: string): Promise<boolean> {
   const { error } = await supabase.from("brackets").delete().eq("id", id);
   if (error) console.error("bracket delete error:", error);
+  return !error;
 }

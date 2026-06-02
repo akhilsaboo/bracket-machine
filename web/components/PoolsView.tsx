@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { usePredictions, type BracketSummary } from "@/lib/predictions";
+import { usePredictions, type BracketRecord, type BracketSummary } from "@/lib/predictions";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { SCHEDULE, type Fixture } from "@/lib/data";
@@ -294,16 +294,27 @@ function PoolDetail({
     })();
   }, [pool.id, reloadKey]);
 
-  const changeEntry = async (bracketId: string) => {
+  const [entryError, setEntryError] = useState<string | null>(null);
+
+  // Assign a bracket as this pool's entry. Upserts the bracket FIRST (a just-
+  // created one may not have synced yet → FK error otherwise), then links it.
+  const assignEntry = async (rec: BracketRecord) => {
     const sb = getSupabaseBrowser();
     if (!sb) return;
-    // Ensure the bracket exists server-side before linking it (a freshly created
-    // bracket may not have synced yet → FK error otherwise).
-    const rec = allRecords().find((r) => r.id === bracketId);
-    if (rec) await upsertBracket(sb, currentUserId, rec);
-    await setPoolBracket(sb, pool.id, currentUserId, bracketId);
+    setEntryError(null);
+    await upsertBracket(sb, currentUserId, rec);
+    const ok = await setPoolBracket(sb, pool.id, currentUserId, rec.id);
+    if (!ok) {
+      setEntryError("Couldn't save your entry. Make sure web/lib/supabase/schema.sql has been run in Supabase, then try again.");
+      return;
+    }
     setChooserOpen(false);
     setReloadKey((k) => k + 1);
+  };
+
+  const pickEntry = (bracketId: string) => {
+    const rec = allRecords().find((r) => r.id === bracketId);
+    if (rec) void assignEntry(rec);
   };
 
   // Brand-new (or just-joined) members have no entry yet — prompt to pick one,
@@ -470,16 +481,17 @@ function PoolDetail({
             </button>
           )}
         </div>
+        {entryError && <p className="w-full text-xs text-red-600">{entryError}</p>}
       </div>
 
       {chooserOpen && !locked && (
         <ChooseEntryModal
           brackets={myBrackets}
           currentId={myEntryId}
-          onPick={changeEntry}
+          onPick={pickEntry}
           onCreate={() => {
-            const id = createBracket();
-            if (id) void changeEntry(id);
+            const rec = createBracket();
+            if (rec) void assignEntry(rec);
           }}
           onClose={() => setChooserOpen(false)}
         />

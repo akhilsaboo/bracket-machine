@@ -81,12 +81,12 @@ interface PredictionContextValue {
   activeName: string;
   activeKind: BracketKind;
   switchBracket: (id: string) => void;
-  /** Create a bracket and make it active. Returns its id, or null if at the cap. */
-  createBracket: (opts?: { name?: string; kind?: BracketKind; seed?: BracketState }) => string | null;
+  /** Create a bracket and make it active. Returns the new record, or null if at the cap. */
+  createBracket: (opts?: { name?: string; kind?: BracketKind; seed?: BracketState }) => BracketRecord | null;
   renameBracket: (id: string, name: string) => void;
   deleteBracket: (id: string) => void;
-  /** Duplicate a bracket (and make the copy active). Returns the new id, or null if at the cap. */
-  duplicateBracket: (id: string) => string | null;
+  /** Duplicate a bracket (and make the copy active). Returns the new record, or null if at the cap. */
+  duplicateBracket: (id: string) => BracketRecord | null;
 
   // --- sync plumbing (used by BracketSync) ---
   allRecords: () => BracketRecord[];
@@ -293,7 +293,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createBracket = useCallback(
-    (opts?: { name?: string; kind?: BracketKind; seed?: BracketState }): string | null => {
+    (opts?: { name?: string; kind?: BracketKind; seed?: BracketState }): BracketRecord | null => {
       const cur = storeRef.current;
       if (cur.order.length >= MAX_BRACKETS) return null;
       const name = opts?.name?.trim() || `Bracket ${cur.order.length + 1}`;
@@ -303,7 +303,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
         order: [...prev.order, rec.id],
         activeId: rec.id,
       }));
-      return rec.id;
+      return rec;
     },
     [],
   );
@@ -334,7 +334,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const duplicateBracket = useCallback((id: string): string | null => {
+  const duplicateBracket = useCallback((id: string): BracketRecord | null => {
     const cur = storeRef.current;
     const src = cur.records[id];
     if (!src || cur.order.length >= MAX_BRACKETS) return null;
@@ -344,7 +344,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
       order: [...prev.order, rec.id],
       activeId: rec.id,
     }));
-    return rec.id;
+    return rec;
   }, []);
 
   // --- sync plumbing ---

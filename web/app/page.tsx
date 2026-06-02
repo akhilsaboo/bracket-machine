@@ -59,8 +59,8 @@ export default function Home() {
     if (existingSC) {
       switchBracket(existingSC.id);
     } else {
-      const id = createBracket({ name: "Second Chance", kind: "second_chance" });
-      if (id) switchBracket(id);
+      const rec = createBracket({ name: "Second Chance", kind: "second_chance" });
+      if (rec) switchBracket(rec.id);
     }
     setTab("bracket");
   };

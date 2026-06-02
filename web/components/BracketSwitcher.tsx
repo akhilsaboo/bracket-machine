@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePredictions, MAX_BRACKETS } from "@/lib/predictions";
+import { usePredictions, MAX_BRACKETS, type BracketRecord } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { deleteBracketRow, upsertBracket } from "@/lib/brackets";
 import { realRound32, isKnockoutStarted } from "@/lib/results";
+
+const SKIP_DELETE_CONFIRM_KEY = "wc2026-skip-delete-confirm";
 
 export function BracketSwitcher() {
   const {
@@ -32,6 +34,8 @@ export function BracketSwitcher() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [dontAsk, setDontAsk] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,28 +48,51 @@ export function BracketSwitcher() {
   }, [open]);
 
   // Persist a structural change to Supabase when signed in.
-  const pushServer = (id: string) => {
-    if (!sb || !user) return;
-    const rec = allRecords().find((r) => r.id === id);
-    if (rec) void upsertBracket(sb, user.id, rec);
+  const pushServer = (rec: BracketRecord) => {
+    if (sb && user) void upsertBracket(sb, user.id, rec);
   };
 
   const handleCreate = (kind?: "second_chance") => {
-    const id = createBracket(
+    const rec = createBracket(
       kind === "second_chance" ? { name: "Second Chance", kind: "second_chance" } : undefined,
     );
-    if (id) {
-      pushServer(id); // new bracket also synced via active-change, this is belt-and-braces
+    if (rec) {
+      pushServer(rec);
       setOpen(false);
     }
   };
   const handleDuplicate = (id: string) => {
-    const newId = duplicateBracket(id);
-    if (newId) pushServer(newId);
+    const rec = duplicateBracket(id);
+    if (rec) pushServer(rec);
   };
-  const handleDelete = (id: string) => {
+
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Server-first when signed in: if the server delete fails (e.g. RLS), keep the
+  // bracket so it doesn't silently reappear on the next sync — and show why.
+  const doDelete = async (id: string) => {
+    if (sb && user) {
+      const ok = await deleteBracketRow(sb, id);
+      if (!ok) {
+        setDeleteError("Couldn't delete on the server (re-run schema.sql in Supabase?). Bracket kept.");
+        return;
+      }
+    }
+    setDeleteError(null);
     deleteBracket(id);
-    if (sb && user) void deleteBracketRow(sb, id);
+  };
+  const handleDelete = (id: string, name: string) => {
+    if (typeof window !== "undefined" && localStorage.getItem(SKIP_DELETE_CONFIRM_KEY) === "1") {
+      void doDelete(id);
+    } else {
+      setPendingDelete({ id, name });
+    }
+  };
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    if (dontAsk) localStorage.setItem(SKIP_DELETE_CONFIRM_KEY, "1");
+    void doDelete(pendingDelete.id);
+    setPendingDelete(null);
   };
   const startRename = (id: string, current: string) => {
     setEditingId(id);
@@ -146,7 +173,7 @@ export function BracketSwitcher() {
                   ⧉
                 </button>
                 <button
-                  onClick={() => handleDelete(b.id)}
+                  onClick={() => handleDelete(b.id, b.name)}
                   title="Delete"
                   className="shrink-0 rounded p-1 text-slate-400 hover:text-red-600"
                 >
@@ -183,6 +210,44 @@ export function BracketSwitcher() {
             <p className="px-3 pb-2 pt-0.5 text-[11px] tabular-nums text-slate-400">
               {brackets.length}/{MAX_BRACKETS} brackets used{atCap ? " — limit reached" : ""}
             </p>
+            {deleteError && <p className="px-3 pb-2 text-[11px] text-red-600">{deleteError}</p>}
+          </div>
+        </div>
+      )}
+
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4 text-slate-800 dark:text-slate-100"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-base font-bold">Delete this bracket?</div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              “{pendingDelete.name}” will be permanently removed. This can&apos;t be undone.
+            </p>
+            <label className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <input type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} />
+              Don&apos;t ask me again
+            </label>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setPendingDelete(null)}
+                className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 rounded-md bg-red-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
