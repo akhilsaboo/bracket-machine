@@ -2,12 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { usePredictions } from "@/lib/predictions";
+import { usePredictions, type BracketSummary } from "@/lib/predictions";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { SCHEDULE, type Fixture } from "@/lib/data";
-import { buildMockTournament, isKnockoutStarted, mockGroupResult, type TournamentTruth } from "@/lib/results";
+import {
+  buildMockTournament,
+  isKnockoutStarted,
+  mockGroupResult,
+  tournamentHasStarted,
+  type TournamentTruth,
+} from "@/lib/results";
 import { scoreEverything } from "@/lib/scoring";
+import { upsertBracket } from "@/lib/brackets";
 import { MemberBracketView } from "./MemberBracketView";
 import {
   createPool,
@@ -118,15 +125,25 @@ function PoolsAuthed({ userId }: { userId: string }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <CreatePoolForm userId={userId} onCreated={refresh} />
-        <JoinPoolForm onJoined={refresh} />
+        <CreatePoolForm
+          userId={userId}
+          onCreated={(id) => {
+            refresh();
+            setSelectedId(id);
+          }}
+        />
+        <JoinPoolForm
+          onJoined={(id) => {
+            refresh();
+            setSelectedId(id);
+          }}
+        />
       </div>
     </div>
   );
 }
 
-function CreatePoolForm({ userId, onCreated }: { userId: string; onCreated: () => void }) {
-  const { activeId, activeName } = usePredictions();
+function CreatePoolForm({ userId, onCreated }: { userId: string; onCreated: (poolId: string) => void }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,14 +154,15 @@ function CreatePoolForm({ userId, onCreated }: { userId: string; onCreated: () =
     if (!sb || !name.trim()) return;
     setBusy(true);
     setError(null);
-    const p = await createPool(sb, name, userId, activeId);
+    // No auto-attach — the user picks their entry bracket once inside the pool.
+    const p = await createPool(sb, name, userId, null);
     setBusy(false);
     if (!p) {
       setError("Couldn't create the pool. Try again.");
       return;
     }
     setName("");
-    onCreated();
+    onCreated(p.id);
   };
 
   return (
@@ -158,10 +176,7 @@ function CreatePoolForm({ userId, onCreated }: { userId: string; onCreated: () =
         className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[var(--wc-accent)] dark:border-slate-700 dark:bg-slate-800"
       />
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-      <p className="mt-2 text-[11px] text-slate-400">
-        Entry: <span className="font-semibold text-slate-500 dark:text-slate-300">{activeName}</span>{" "}
-        (change it anytime inside the pool)
-      </p>
+      <p className="mt-2 text-[11px] text-slate-400">You'll choose which bracket to enter next.</p>
       <button
         type="submit"
         disabled={busy || !name.trim()}
@@ -173,8 +188,7 @@ function CreatePoolForm({ userId, onCreated }: { userId: string; onCreated: () =
   );
 }
 
-function JoinPoolForm({ onJoined }: { onJoined: () => void }) {
-  const { activeId } = usePredictions();
+function JoinPoolForm({ onJoined }: { onJoined: (poolId: string) => void }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -185,14 +199,15 @@ function JoinPoolForm({ onJoined }: { onJoined: () => void }) {
     if (!sb || !code.trim()) return;
     setBusy(true);
     setError(null);
-    const res = await joinPoolByCode(sb, code, activeId);
+    // No auto-attach — entry is chosen inside the pool.
+    const res = await joinPoolByCode(sb, code, null);
     setBusy(false);
     if ("error" in res) {
       setError(res.error);
       return;
     }
     setCode("");
-    onJoined();
+    onJoined(res.pool_id);
   };
 
   return (
@@ -237,7 +252,7 @@ function PoolDetail({
   currentUserId: string;
   onBack: () => void;
 }) {
-  const { now, isPreview, brackets: myBrackets } = usePredictions();
+  const { now, isPreview, brackets: myBrackets, createBracket, allRecords } = usePredictions();
   const [members, setMembers] = useState<PoolMember[]>([]);
   const [brackets, setBrackets] = useState<MemberBracket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -249,6 +264,10 @@ function PoolDetail({
 
   // My attributed bracket id in THIS pool (null until set).
   const myEntryId = members.find((m) => m.user_id === currentUserId)?.bracket_id ?? null;
+  // Entries lock once the first match kicks off (ESPN-style).
+  const locked = tournamentHasStarted(now);
+  const myEntry = myBrackets.find((b) => b.id === myEntryId) ?? null;
+  const [chooserOpen, setChooserOpen] = useState(false);
 
   useEffect(() => {
     const sb = getSupabaseBrowser();
@@ -278,9 +297,20 @@ function PoolDetail({
   const changeEntry = async (bracketId: string) => {
     const sb = getSupabaseBrowser();
     if (!sb) return;
+    // Ensure the bracket exists server-side before linking it (a freshly created
+    // bracket may not have synced yet → FK error otherwise).
+    const rec = allRecords().find((r) => r.id === bracketId);
+    if (rec) await upsertBracket(sb, currentUserId, rec);
     await setPoolBracket(sb, pool.id, currentUserId, bracketId);
+    setChooserOpen(false);
     setReloadKey((k) => k + 1);
   };
+
+  // Brand-new (or just-joined) members have no entry yet — prompt to pick one,
+  // unless entries are already locked.
+  useEffect(() => {
+    if (!loading && !myEntryId && !locked) setChooserOpen(true);
+  }, [loading, myEntryId, locked]);
 
   // Single tournament truth (mock in preview, future: live from API).
   const truth: TournamentTruth | null = useMemo(
@@ -411,25 +441,49 @@ function PoolDetail({
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <div className="min-w-0">
           <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Your entry</div>
-          <p className="text-xs text-slate-500">Which of your brackets competes in this pool.</p>
+          <p className="text-xs text-slate-500">
+            {locked
+              ? "🔒 Entries are locked — the tournament has started."
+              : "The bracket you're competing with. Lockable change until the first match (Jun 11)."}
+          </p>
         </div>
-        <select
-          value={myEntryId ?? ""}
-          onChange={(e) => changeEntry(e.target.value)}
-          className="rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm font-medium outline-none focus:border-[var(--wc-accent)] dark:border-slate-700"
-        >
-          {!myEntryId && <option value="">Pick a bracket…</option>}
-          {myBrackets.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.kind === "second_chance" ? "🔄 " : ""}
-              {b.name} ({b.predicted}/72)
-            </option>
-          ))}
-        </select>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="max-w-[12rem] truncate text-sm font-medium">
+            {myEntry ? (
+              <>
+                {myEntry.kind === "second_chance" ? "🔄 " : ""}
+                {myEntry.name}
+              </>
+            ) : (
+              <span className="text-slate-400">No entry yet</span>
+            )}
+          </span>
+          {!locked && (
+            <button
+              onClick={() => setChooserOpen(true)}
+              className="rounded-md border border-[var(--wc-accent)]/40 px-3 py-1.5 text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/10"
+            >
+              {myEntry ? "Change" : "Choose entry"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {chooserOpen && !locked && (
+        <ChooseEntryModal
+          brackets={myBrackets}
+          currentId={myEntryId}
+          onPick={changeEntry}
+          onCreate={() => {
+            const id = createBracket();
+            if (id) void changeEntry(id);
+          }}
+          onClose={() => setChooserOpen(false)}
+        />
+      )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <header className="flex items-center justify-between bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
@@ -526,6 +580,66 @@ function PoolDetail({
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ChooseEntryModal({
+  brackets,
+  currentId,
+  onPick,
+  onCreate,
+  onClose,
+}: {
+  brackets: BracketSummary[];
+  currentId: string | null;
+  onPick: (id: string) => void;
+  onCreate: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="brand-gradient px-5 py-4 text-white">
+          <div className="text-lg font-extrabold">Choose your entry</div>
+          <p className="text-xs text-white/80">
+            Which bracket competes in this pool? You can change it until the first match.
+          </p>
+        </div>
+        <div className="max-h-[55vh] space-y-1 overflow-y-auto p-3">
+          {brackets.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => onPick(b.id)}
+              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
+                b.id === currentId
+                  ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10"
+                  : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
+              }`}
+            >
+              <span className="truncate font-medium">
+                {b.kind === "second_chance" ? "🔄 " : ""}
+                {b.name}
+              </span>
+              <span className="shrink-0 text-[11px] tabular-nums text-slate-400">{b.predicted}/72</span>
+            </button>
+          ))}
+          <button
+            onClick={onCreate}
+            className="mt-1 flex w-full items-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-left text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
+          >
+            ＋ Create a new bracket &amp; enter it
+          </button>
+        </div>
       </div>
     </div>
   );
