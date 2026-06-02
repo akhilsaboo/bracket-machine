@@ -21,7 +21,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "group", label: "Group Stage" },
   { id: "schedule", label: "Schedule" },
   { id: "bracket", label: "Bracket" },
-  { id: "awards", label: "Awards" },
+  { id: "awards", label: "Predictions" },
   { id: "pools", label: "Pools" },
 ];
 

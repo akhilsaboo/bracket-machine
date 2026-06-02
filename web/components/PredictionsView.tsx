@@ -1,71 +1,228 @@
 "use client";
 
-import { TEAMS } from "@/lib/data";
-import { flag } from "@/lib/flags";
+import { useEffect, useState } from "react";
+import { FUTURES, fetchFuture, type KalshiMarketData } from "@/lib/kalshi";
+import { isKnockoutStarted } from "@/lib/results";
 import { usePredictions } from "@/lib/predictions";
-import { tournamentHasStarted } from "@/lib/results";
 
-const TEAMS_BY_NAME = [...TEAMS].sort((a, b) => a.name.localeCompare(b.name));
+const PICKS_KEY = "wc2026-prediction-picks";
 
-const AWARDS = [
-  { key: "golden_boot", title: "Golden Boot", subtitle: "Top scorer", icon: "⚽" },
-  { key: "golden_glove", title: "Golden Glove", subtitle: "Best goalkeeper", icon: "🧤" },
-  { key: "best_player", title: "Best Player", subtitle: "Golden Ball — outstanding player", icon: "🏅" },
-  { key: "best_young_player", title: "Best Young Player", subtitle: "Best player under 21", icon: "✨" },
-] as const;
+interface Pick {
+  ticker: string; // outcome market ticker (or "<series>-NO" for a binary No)
+  label: string;
+  prob: number | null; // implied % locked at pick time
+}
+type Picks = Record<string, Pick>; // by future key
+
+function loadPicks(): Picks {
+  try {
+    return JSON.parse(localStorage.getItem(PICKS_KEY) ?? "{}") as Picks;
+  } catch {
+    return {};
+  }
+}
 
 export function PredictionsView() {
-  const { awards, setAward, activeName, now } = usePredictions();
-  const locked = tournamentHasStarted(now);
+  const { now } = usePredictions();
+  const [tab, setTab] = useState<"futures" | "games">("futures");
+  const gamesOpen = isKnockoutStarted(now);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="text-lg font-extrabold">Tournament awards</h2>
+        <h2 className="text-lg font-extrabold">Predictions</h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Call who takes home each individual prize. Saved with your active bracket
-          (<span className="font-medium">{activeName}</span>).{" "}
-          {locked ? "🔒 Locked — the tournament has started." : "Editable until the tournament kicks off."}
+          Call the tournament's big questions. Odds are live market prices from Kalshi — bolder
+          correct calls will be worth more points (leaderboard coming soon).
         </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {AWARDS.map((a) => {
-          const code = awards[a.key] ?? "";
-          return (
-            <div
-              key={a.key}
-              className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+        <div className="mt-3 flex gap-1">
+          {(["futures", "games"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold capitalize transition ${
+                tab === t
+                  ? "bg-[var(--wc-accent)] text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+              }`}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl leading-none">{a.icon}</span>
-                <div className="min-w-0">
-                  <div className="font-bold">{a.title}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{a.subtitle}</div>
-                </div>
-                {code && <span className="ml-auto text-xl leading-none">{flag(code)}</span>}
-              </div>
-              <select
-                value={code}
-                disabled={locked}
-                onChange={(e) => setAward(a.key, e.target.value || null)}
-                className="mt-3 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--wc-accent)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700"
-              >
-                <option value="">Pick a team…</option>
-                {TEAMS_BY_NAME.map((t) => (
-                  <option key={t.code} value={t.code}>
-                    {flag(t.code)} {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          );
-        })}
+              {t === "futures" ? "🔮 Futures" : "⚔️ Games"}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {tab === "futures" ? (
+        <FuturesTab />
+      ) : (
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+          {gamesOpen
+            ? "Per-game predictions are coming soon."
+            : "⚔️ Game-by-game predictions unlock when the knockout rounds begin (Jun 28)."}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FuturesTab() {
+  const [picks, setPicks] = useState<Picks>({});
+  useEffect(() => setPicks(loadPicks()), []);
+
+  const setPick = (futureKey: string, pick: Pick | null) => {
+    setPicks((prev) => {
+      const next = { ...prev };
+      if (pick) next[futureKey] = pick;
+      else delete next[futureKey];
+      try {
+        localStorage.setItem(PICKS_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      {FUTURES.map((f) => (
+        <FutureCard key={f.key} futureKey={f.key} pick={picks[f.key] ?? null} onPick={(p) => setPick(f.key, p)} />
+      ))}
       <p className="text-[11px] text-slate-400">
-        Player-level picks and award scoring are coming later — for now these are just your calls per bracket.
+        Picks save on this device for now. Odds may read “—” until betting markets fill in closer to
+        kickoff.
       </p>
+    </div>
+  );
+}
+
+function FutureCard({
+  futureKey,
+  pick,
+  onPick,
+}: {
+  futureKey: string;
+  pick: Pick | null;
+  onPick: (p: Pick | null) => void;
+}) {
+  const cfg = FUTURES.find((f) => f.key === futureKey)!;
+  const [data, setData] = useState<KalshiMarketData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchFuture(futureKey).then((d) => {
+      if (!cancelled) {
+        setData(d);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [futureKey]);
+
+  const pct = (p: number | null) => (p == null ? "—" : `${p}%`);
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center gap-2">
+        <span className="text-xl leading-none">{cfg.icon}</span>
+        <div className="min-w-0 flex-1">
+          <div className="font-bold">{cfg.title}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">{cfg.subtitle}</div>
+        </div>
+        {pick && (
+          <button onClick={() => onPick(null)} className="text-[11px] text-slate-400 hover:text-red-600">
+            clear
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <p className="mt-3 text-xs text-slate-400">Loading odds…</p>
+      ) : !data || data.outcomes.length === 0 ? (
+        <p className="mt-3 text-xs text-slate-400">No market data yet — check back closer to the tournament.</p>
+      ) : data.binary ? (
+        <BinaryPicker data={data} pick={pick} onPick={onPick} />
+      ) : (
+        <>
+          <div className="mt-3 space-y-1">
+            {(showAll ? data.outcomes : data.outcomes.slice(0, 10)).map((o) => {
+              const selected = pick?.ticker === o.ticker;
+              return (
+                <button
+                  key={o.ticker}
+                  onClick={() => onPick({ ticker: o.ticker, label: o.label, prob: o.prob })}
+                  className={`flex w-full items-center justify-between rounded-lg border px-3 py-1.5 text-left text-sm transition ${
+                    selected
+                      ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10 font-semibold"
+                      : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
+                  }`}
+                >
+                  <span className="truncate">{o.label}</span>
+                  <span className="shrink-0 tabular-nums text-slate-500">{pct(o.prob)}</span>
+                </button>
+              );
+            })}
+          </div>
+          {data.outcomes.length > 10 && (
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="mt-2 text-xs font-semibold text-[var(--wc-accent)]"
+            >
+              {showAll ? "Show top 10" : `Show all ${data.outcomes.length} →`}
+            </button>
+          )}
+        </>
+      )}
+
+      {pick && (
+        <p className="mt-2 text-[11px] text-[var(--wc-accent)]">
+          Your pick: <span className="font-semibold">{pick.label}</span>
+          {pick.prob != null && ` · locked at ${pick.prob}%`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BinaryPicker({
+  data,
+  pick,
+  onPick,
+}: {
+  data: KalshiMarketData;
+  pick: Pick | null;
+  onPick: (p: Pick | null) => void;
+}) {
+  const yes = data.outcomes[0];
+  const yesProb = yes?.prob ?? null;
+  const noProb = yesProb == null ? null : 100 - yesProb;
+  const opts = [
+    { ticker: yes?.ticker ?? `${data.series}-Y`, label: "Yes", prob: yesProb },
+    { ticker: `${data.series}-NO`, label: "No", prob: noProb },
+  ];
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      {opts.map((o) => {
+        const selected = pick?.ticker === o.ticker;
+        return (
+          <button
+            key={o.ticker}
+            onClick={() => onPick({ ticker: o.ticker, label: o.label, prob: o.prob })}
+            className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+              selected
+                ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10"
+                : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
+            }`}
+          >
+            {o.label} <span className="tabular-nums text-slate-500">{o.prob == null ? "—" : `${o.prob}%`}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
