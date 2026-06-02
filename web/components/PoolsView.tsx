@@ -639,8 +639,10 @@ function PoolDetail({
           <strong>Scoring:</strong>{" "}
           group exact <span className="font-bold text-emerald-600 dark:text-emerald-400">★ +10</span>,
           correct outcome <span className="font-bold text-amber-600 dark:text-amber-400">✓ +5</span>.
-          Knockout per correct match: R32 +20, R16 +40, QF +80, SF +160, 3rd-place +160, Champion +320.
-          Ties broken by KO points, then exact-score count, then tiebreaker total-goals.
+          Knockout: points for each team you correctly pick to <strong>reach</strong> a round (R32 +20,
+          R16 +40, QF +80, SF/3rd +160, Champion +320), regardless of opponent — plus{" "}
+          <span className="font-bold text-emerald-600 dark:text-emerald-400">+10</span> for nailing its
+          exact bracket slot. Ties broken by KO points, then exact predictions, then tiebreaker total-goals.
         </footer>
       </div>
 

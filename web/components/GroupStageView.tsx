@@ -13,24 +13,40 @@ import {
 } from "@/lib/autofill";
 import { GroupCard } from "./GroupCard";
 import { AutoFillModal } from "./AutoFillModal";
+import { WelcomeTour } from "./WelcomeTour";
 
 const AUTOFILL_SEEN_KEY = "wc2026-autofill-seen";
+const TOUR_SEEN_KEY = "wc2026-tour-seen";
 
 export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
   const { predictions, setManyScores, setManyKnockout, setBracketSubmitted, hydrated } = usePredictions();
   const { user, requestSignIn } = useAuth();
   const complete = allGroupsComplete(predictions);
 
-  // First-load nudge: offer auto-fill once, only when the bracket is still empty.
+  // First load: show the welcome tour once, then chain into the auto-fill nudge
+  // (only when the bracket is still empty).
+  const [showTour, setShowTour] = useState(false);
   const [showAutoFill, setShowAutoFill] = useState(false);
-  useEffect(() => {
-    if (!hydrated) return;
+
+  const offerAutoFill = () => {
     const seen = localStorage.getItem(AUTOFILL_SEEN_KEY);
     const isEmpty = Object.keys(predictions).length === 0;
     if (!seen && isEmpty) setShowAutoFill(true);
-    // Only run once storage has hydrated; predictions check is a snapshot on purpose.
+  };
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!localStorage.getItem(TOUR_SEEN_KEY)) setShowTour(true);
+    else offerAutoFill();
+    // Run once storage has hydrated; predictions check is a snapshot on purpose.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
+
+  const finishTour = () => {
+    localStorage.setItem(TOUR_SEEN_KEY, "1");
+    setShowTour(false);
+    offerAutoFill();
+  };
 
   const dismissAutoFill = () => {
     localStorage.setItem(AUTOFILL_SEEN_KEY, "1");
@@ -53,6 +69,7 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
   };
   return (
     <div className="space-y-6">
+      {showTour && <WelcomeTour onDone={finishTour} />}
       {showAutoFill && <AutoFillModal onApply={applyAutoFill} onClose={dismissAutoFill} />}
 
       <div className="flex justify-end">

@@ -8,7 +8,8 @@ import { champion, resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/
 import { flag } from "@/lib/flags";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
-import { mockKnockoutWinner, realRound32, type KnockoutResult } from "@/lib/results";
+import { buildMockTournament, realRound32 } from "@/lib/results";
+import { knockoutGrader } from "@/lib/scoring";
 import { BracketTree } from "./BracketTree";
 
 export function BracketView() {
@@ -66,13 +67,10 @@ export function BracketView() {
 
   const onPick = (match: number, code: string) => setKnockoutWinner(match, code);
 
-  // Mock results when previewing; future: live results from a data source.
-  const getResult = (no: number): KnockoutResult | null => {
-    if (!isPreview) return null;
-    const m = resolved.get(no);
-    if (!m) return null;
-    return mockKnockoutWinner(no, m.home?.code ?? null, m.away?.code ?? null);
-  };
+  // Grade against the independent tournament truth (mock in preview, live feed
+  // later) — same source the pool leaderboards use. Advancement + exact bonus.
+  const truth = isPreview ? buildMockTournament(now) : null;
+  const gradePick = truth ? knockoutGrader(truth) : undefined;
 
   const champ = champion(resolved);
   const thirds = isSecondChance ? [] : thirdPlaceRanking(predictions);
@@ -97,7 +95,7 @@ export function BracketView() {
         </div>
       )}
 
-      <BracketTree resolved={resolved} onPick={onPick} getResult={getResult} />
+      <BracketTree resolved={resolved} onPick={onPick} gradePick={gradePick} />
 
       {canSubmit && (
         <div className="sticky bottom-4 flex flex-col items-center gap-1">

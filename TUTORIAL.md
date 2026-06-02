@@ -78,13 +78,15 @@ A **⚔️ Games** sub-tab (per-knockout-match predictions) unlocks when the kno
 - **★ +10** exact score (both winner and scoreline right)
 - **✓ +5** correct outcome (right winner/draw, wrong score)
 
-**Knockout** — per match, per round:
-- R32: **+20**
-- R16: **+40**
-- QF: **+80**
-- SF: **+160**
-- 3rd-place playoff: **+160**
-- Final / Champion: **+320**
+**Knockout** — *team advancement* (March-Madness style): you earn a round's points for each team you correctly predicted to **reach** that round, no matter who they actually played. One early upset won't tank your whole bracket. Per round:
+- Reach R16 (win an R32 tie): **+20**
+- Reach QF: **+40**
+- Reach SF: **+80**
+- Reach Final / win 3rd-place: **+160**
+- Champion: **+320**
+- **Exact-slot bonus: +10** whenever that team is in the exact bracket position you predicted (shown as a green +10 chip).
+
+Colors in the bracket: 🟢 green = your pick advanced as predicted, 🔴 red = it didn't. (No yellow in the knockout — there's no scoreline to be partially right about.)
 
 **Ties** broken by: total points → knockout points → exact-score count → tiebreaker total-goals (optional; an unset tiebreaker loses to any guess).
 

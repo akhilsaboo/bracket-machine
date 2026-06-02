@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FUTURES, fetchFuture, type KalshiMarketData } from "@/lib/kalshi";
 import { flag, flagFromIso2 } from "@/lib/flags";
-import { isKnockoutStarted, realRound32, buildMockTournament } from "@/lib/results";
+import { isKnockoutStarted, tournamentHasStarted, realRound32, buildMockTournament } from "@/lib/results";
 import { resolveKnockoutFrom, type KnockoutWinners, type KOMatch } from "@/lib/knockout";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
@@ -97,6 +97,7 @@ export function PredictionsView() {
   const { now } = usePredictions();
   const [tab, setTab] = useState<"futures" | "games">("futures");
   const gamesOpen = isKnockoutStarted(now);
+  const started = tournamentHasStarted(now);
   const { picks, setPick, userId } = usePredictionPicks();
 
   return (
@@ -105,7 +106,7 @@ export function PredictionsView() {
         <h2 className="text-lg font-extrabold">Predictions</h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {tab === "futures"
-            ? "Predict the tournament's biggest questions. The % next to each option is its live market-implied chance from Kalshi, and the points show what a correct pick is worth — the less likely your pick, the more it pays. Odds and point values lock in about two days before kickoff."
+            ? `Predict the tournament's biggest questions. The % next to each option is its market-implied chance from Kalshi, and the points show what a correct pick is worth — the less likely your pick, the more it pays.${started ? " Odds are locked for the tournament." : " Odds and point values lock in about two days before kickoff."}`
             : "Call every knockout match. Pick the winner of each tie as the bracket fills in; correct calls are worth more the deeper the round. Picks lock once a match is played."}
         </p>
         <div className="mt-3 flex gap-1">
@@ -126,7 +127,7 @@ export function PredictionsView() {
       </div>
 
       {tab === "futures" ? (
-        <FuturesTab picks={picks} setPick={setPick} userId={userId} />
+        <FuturesTab picks={picks} setPick={setPick} userId={userId} started={started} />
       ) : gamesOpen ? (
         <GamesTab picks={picks} setPick={setPick} userId={userId} />
       ) : (
@@ -138,7 +139,17 @@ export function PredictionsView() {
   );
 }
 
-function FuturesTab({ picks, setPick, userId }: { picks: Picks; setPick: SetPick; userId: string | null }) {
+function FuturesTab({
+  picks,
+  setPick,
+  userId,
+  started,
+}: {
+  picks: Picks;
+  setPick: SetPick;
+  userId: string | null;
+  started: boolean;
+}) {
   return (
     <div className="space-y-3">
       {FUTURES.map((f) => (
@@ -147,8 +158,8 @@ function FuturesTab({ picks, setPick, userId }: { picks: Picks; setPick: SetPick
       <p className="text-[11px] text-slate-400">
         {userId
           ? "Saved to your account — your picks sync across devices."
-          : "Picks save on this device. Sign in to sync them across devices."}{" "}
-        Odds may read “—” until betting markets fill in closer to kickoff.
+          : "Picks save on this device. Sign in to sync them across devices."}
+        {!started && " Odds may read “—” until betting markets fill in closer to kickoff."}
       </p>
     </div>
   );

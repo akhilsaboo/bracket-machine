@@ -2,7 +2,8 @@
 
 import { resolveKnockout } from "@/lib/knockout";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
-import type { KnockoutResult, TournamentTruth } from "@/lib/results";
+import type { TournamentTruth } from "@/lib/results";
+import { knockoutGrader } from "@/lib/scoring";
 import { BracketTree } from "./BracketTree";
 
 export function MemberBracketView({
@@ -37,12 +38,7 @@ export function MemberBracketView({
     );
   }
 
-  const getResult = truth
-    ? (no: number): KnockoutResult | null => {
-        const code = truth.knockoutWinners[no];
-        return code ? { winnerCode: code } : null;
-      }
-    : undefined;
+  const gradePick = truth ? knockoutGrader(truth) : undefined;
 
   return (
     <div className="space-y-4">
@@ -61,7 +57,7 @@ export function MemberBracketView({
           )}
         </p>
       </div>
-      <BracketTree resolved={resolved} getResult={getResult} />
+      <BracketTree resolved={resolved} gradePick={gradePick} />
     </div>
   );
 }
