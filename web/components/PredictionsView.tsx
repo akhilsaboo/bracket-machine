@@ -32,8 +32,8 @@ export function PredictionsView() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-lg font-extrabold">Predictions</h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Call the tournament's big questions. Odds are live market prices from Kalshi — bolder
-          correct calls will be worth more points (leaderboard coming soon).
+          Call the tournament's big questions. Odds + the points each pick is worth come from Kalshi
+          and lock ~2 days before kickoff — bolder correct calls earn more. (Leaderboard coming soon.)
         </p>
         <div className="mt-3 flex gap-1">
           {(["futures", "games"] as const).map((t) => (
@@ -125,6 +125,7 @@ function FutureCard({
   }, [futureKey]);
 
   const pct = (p: number | null) => (p == null ? "—" : `${p}%`);
+  const pts = (p: number | null) => (p == null || p <= 0 ? null : Math.min(100, Math.round(10 / (p / 100))));
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -163,7 +164,14 @@ function FutureCard({
                   }`}
                 >
                   <span className="truncate">{o.label}</span>
-                  <span className="shrink-0 tabular-nums text-slate-500">{pct(o.prob)}</span>
+                  <span className="flex shrink-0 items-center gap-2 tabular-nums">
+                    <span className="text-slate-500">{pct(o.prob)}</span>
+                    {pts(o.prob) != null && (
+                      <span className="rounded bg-[var(--wc-accent)]/10 px-1.5 text-[11px] font-semibold text-[var(--wc-accent)]">
+                        {pts(o.prob)} pts
+                      </span>
+                    )}
+                  </span>
                 </button>
               );
             })}
@@ -201,6 +209,7 @@ function BinaryPicker({
   const yes = data.outcomes[0];
   const yesProb = yes?.prob ?? null;
   const noProb = yesProb == null ? null : 100 - yesProb;
+  const pts = (p: number | null) => (p == null || p <= 0 ? null : Math.min(100, Math.round(10 / (p / 100))));
   const opts = [
     { ticker: yes?.ticker ?? `${data.series}-Y`, label: "Yes", prob: yesProb },
     { ticker: `${data.series}-NO`, label: "No", prob: noProb },
@@ -220,6 +229,7 @@ function BinaryPicker({
             }`}
           >
             {o.label} <span className="tabular-nums text-slate-500">{o.prob == null ? "—" : `${o.prob}%`}</span>
+            {pts(o.prob) != null && <span className="ml-1 text-[11px] text-[var(--wc-accent)]">· {pts(o.prob)} pts</span>}
           </button>
         );
       })}

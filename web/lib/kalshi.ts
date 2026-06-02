@@ -6,19 +6,22 @@ export interface FutureConfig {
   key: string; // our stable id
   title: string;
   subtitle: string;
-  series: string; // Kalshi series_ticker
+  // Provide exactly one: a Kalshi series_ticker (whole series) or an event_ticker
+  // (one event within a series, e.g. the Golden Ball event of KXWCAWARD).
+  series?: string;
+  event?: string;
   icon: string;
 }
 
-// Tickers verified live June 2026. (Golden Ball/Glove + "goal in first minute"
-// had no Kalshi series at time of writing — add here if/when they appear.)
+// Tickers verified live June 2026.
 export const FUTURES: FutureConfig[] = [
   { key: "winner", title: "World Cup Winner", subtitle: "Who lifts the trophy", series: "KXMENWORLDCUP", icon: "🏆" },
   { key: "golden_boot", title: "Golden Boot", subtitle: "Top goalscorer", series: "KXWCGOALLEADER", icon: "⚽" },
+  { key: "golden_ball", title: "Golden Ball", subtitle: "Best player", event: "KXWCAWARD-26GBALL", icon: "🏅" },
+  { key: "golden_glove", title: "Golden Glove", subtitle: "Best goalkeeper", event: "KXWCAWARD-26GGLOVE", icon: "🧤" },
+  { key: "messi_ronaldo", title: "Messi vs Ronaldo", subtitle: "More goal contributions", event: "KXWCMESSIRONALDO-26LMESCRON", icon: "🐐" },
+  { key: "host_furthest", title: "Furthest-Advancing Host", subtitle: "USA / Canada / Mexico", event: "KXWCBESTHOST-26", icon: "🏟️" },
   { key: "first_time_winner", title: "First-Time Winner?", subtitle: "A nation wins its first ever WC", series: "KXWC1STTIMEWIN", icon: "🌟" },
-  { key: "host_furthest", title: "Furthest-Advancing Host", subtitle: "Best stage by a host nation (USA/CAN/MEX)", series: "KXWCHOSTSTAGE", icon: "🏟️" },
-  { key: "messi", title: "Messi at the World Cup", subtitle: "Argentina's talisman", series: "KXSOCCERPLAYMESSI", icon: "🐐" },
-  { key: "ronaldo", title: "Ronaldo at the World Cup", subtitle: "Portugal's talisman", series: "KXSOCCERPLAYCRON", icon: "🐐" },
 ];
 
 export const FUTURE_BY_KEY: Record<string, FutureConfig> = Object.fromEntries(

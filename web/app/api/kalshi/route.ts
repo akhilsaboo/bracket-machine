@@ -35,8 +35,10 @@ export async function GET(req: Request) {
     return Response.json(hit.data, { headers: { "cache-control": "no-store" } });
   }
 
+  const filter = cfg.event ? `event_ticker=${cfg.event}` : `series_ticker=${cfg.series}`;
+  const ident = cfg.event ?? cfg.series ?? "";
   try {
-    const r = await fetch(`${KALSHI}/markets?series_ticker=${cfg.series}&status=open&limit=200`, {
+    const r = await fetch(`${KALSHI}/markets?${filter}&limit=500`, {
       headers: { accept: "application/json" },
       cache: "no-store",
     });
@@ -50,7 +52,7 @@ export async function GET(req: Request) {
 
     const data: KalshiMarketData = {
       key,
-      series: cfg.series,
+      series: ident,
       title: cfg.title,
       binary: markets.length === 1,
       outcomes,
@@ -63,7 +65,7 @@ export async function GET(req: Request) {
     // Serve stale cache if we have it; else an empty shell.
     if (hit) return Response.json(hit.data, { headers: { "cache-control": "no-store" } });
     return Response.json(
-      { key, series: cfg.series, title: cfg.title, binary: false, outcomes: [], fetchedAt: new Date().toISOString() } satisfies KalshiMarketData,
+      { key, series: ident, title: cfg.title, binary: false, outcomes: [], fetchedAt: new Date().toISOString() } satisfies KalshiMarketData,
       { headers: { "cache-control": "no-store" } },
     );
   }
