@@ -2,7 +2,6 @@
 
 import { SCHEDULE, type Fixture } from "@/lib/data";
 import { hasSchedule, isLocked, splitSchedule, timeLabel } from "@/lib/schedule";
-import { PREVIEW_NOW_ISO, tournamentHasStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
 import { usePredictions } from "@/lib/predictions";
 import { MatchRow } from "./MatchRow";
@@ -11,14 +10,12 @@ function MatchLine({
   f,
   now,
   locked,
-  isPreview,
 }: {
   f: Fixture;
   now: Date;
   locked: boolean;
-  isPreview: boolean;
 }) {
-  const { groupResultFor } = useTournament(now, isPreview);
+  const { groupResultFor } = useTournament(now, false);
   const result = groupResultFor(f);
   return (
     <div className="flex items-center gap-2 border-b border-slate-100 py-1 last:border-0 dark:border-slate-800">
@@ -36,74 +33,22 @@ function MatchLine({
 }
 
 export function ScheduleView() {
-  const { now, isPreview, setPreviewNow } = usePredictions();
+  const { now } = usePredictions();
   const dated = hasSchedule(SCHEDULE);
-  // The preview toggle is only useful BEFORE the tournament starts — once real
-  // matches are happening, real results from the live data source take over.
-  const realNow = isPreview ? new Date() : now;
-  const showPreviewToggle = dated && !tournamentHasStarted(realNow);
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-400">
-          Every match in kickoff order — change a score right up until that game starts, and your edits
-          flow straight into the standings and your bracket. Each pick locks once its match begins.
-        </p>
-        {showPreviewToggle && (
-          <button
-            onClick={() => setPreviewNow(isPreview ? null : PREVIEW_NOW_ISO)}
-            className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
-              isPreview
-                ? "bg-[var(--wc-accent)] text-white"
-                : "border border-slate-300 text-slate-500 hover:border-[var(--wc-accent)] dark:border-slate-600"
-            }`}
-            title="Preview how completed matches lock, red out, and grade your picks"
-          >
-            {isPreview ? "Preview: mid-tournament ✕" : "Preview mid-tournament"}
-          </button>
-        )}
-      </div>
+      <p className="text-xs text-slate-400">
+        Every match in kickoff order — change a score right up until that game starts, and your edits
+        flow straight into the standings and your bracket. Each pick locks once its match begins.
+      </p>
 
-      {isPreview && <PreviewLegend />}
-
-      {!dated ? <FallbackByMatchday /> : <DatedSchedule now={now} isPreview={isPreview} />}
+      {!dated ? <FallbackByMatchday /> : <DatedSchedule now={now} />}
     </div>
   );
 }
 
-function PreviewLegend() {
-  return (
-    <div className="rounded-xl border border-[var(--wc-accent)]/30 bg-[var(--wc-accent)]/5 p-3 text-xs text-slate-600 dark:text-slate-300">
-      <p className="mb-2 font-semibold text-slate-700 dark:text-slate-200">
-        Preview mode: simulated results so you can see how scoring will look.
-      </p>
-      <p className="mb-2">
-        <strong>“Actual”</strong> = the match's real final score (faked here for the demo). Each pick
-        is graded against it:
-      </p>
-      <ul className="space-y-1">
-        <li>
-          <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded bg-emerald-500 text-[10px] text-white">★</span>
-          <strong className="text-emerald-700 dark:text-emerald-300">Green</strong> — exact score (you
-          nailed both the winner and the scoreline). <span className="text-slate-400">+10</span>
-        </li>
-        <li>
-          <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded bg-amber-400 text-[10px] text-white">✓</span>
-          <strong className="text-amber-600 dark:text-amber-400">Yellow</strong> — right result (correct
-          winner or draw, wrong score). <span className="text-slate-400">+5</span>
-        </li>
-        <li>
-          <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded bg-red-500 text-[10px] text-white">✗</span>
-          <strong className="text-red-600 dark:text-red-400">Red</strong> — wrong result.
-          <span className="text-slate-400"> +0</span>
-        </li>
-      </ul>
-    </div>
-  );
-}
-
-function DatedSchedule({ now, isPreview }: { now: Date; isPreview: boolean }) {
+function DatedSchedule({ now }: { now: Date }) {
   const { days, over } = splitSchedule(SCHEDULE, now);
   return (
     <>
@@ -118,7 +63,7 @@ function DatedSchedule({ now, isPreview }: { now: Date; isPreview: boolean }) {
           </header>
           <div className="px-3 py-1">
             {day.fixtures.map((f) => (
-              <MatchLine key={f.id} f={f} now={now} locked={isLocked(f, now)} isPreview={isPreview} />
+              <MatchLine key={f.id} f={f} now={now} locked={isLocked(f, now)} />
             ))}
           </div>
         </section>
@@ -131,7 +76,7 @@ function DatedSchedule({ now, isPreview }: { now: Date; isPreview: boolean }) {
           </header>
           <div className="px-3 py-1">
             {over.map((f) => (
-              <MatchLine key={f.id} f={f} now={now} locked isPreview={isPreview} />
+              <MatchLine key={f.id} f={f} now={now} locked />
             ))}
           </div>
         </section>

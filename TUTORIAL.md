@@ -39,7 +39,6 @@ Use the **bracket switcher** (the ▾ pill in the header) to keep up to **25 bra
 The same predictions in chronological order:
 - Grouped by **calendar day** with kickoff times + host city.
 - Matches lock at kickoff: once a match starts, your pick freezes, the row turns red, and drops to the bottom.
-- The **"Preview tournament outcomes"** button (top-right, pre-tournament only) jumps a demo "now" forward so you can see how the lock/grading looks.
 - After matches happen, picks are graded: **★ green** (exact), **✓ yellow** (correct outcome), **✗ red** (wrong).
 
 ## 6. Matchup insights (📰)

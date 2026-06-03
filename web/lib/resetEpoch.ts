@@ -37,6 +37,13 @@ export function applyResetEpoch(): void {
       if (k && k.startsWith(PREFIX) && k !== EPOCH_KEY) toRemove.push(k);
     }
     toRemove.forEach((k) => localStorage.removeItem(k));
+    // Also clear sessionStorage (e.g. cached AI insights: wc2026-insight:*).
+    const sRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(PREFIX)) sRemove.push(k);
+    }
+    sRemove.forEach((k) => sessionStorage.removeItem(k));
     localStorage.setItem(EPOCH_KEY, RESET_EPOCH);
   } catch {
     // ignore private-mode / quota errors

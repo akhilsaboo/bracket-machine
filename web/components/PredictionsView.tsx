@@ -107,7 +107,7 @@ export function PredictionsView() {
         <h2 className="text-lg font-extrabold">Predictions</h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {tab === "futures"
-            ? `Predict the tournament's biggest questions. The % next to each option is its market-implied chance from Kalshi, and the points show what a correct pick is worth — the less likely your pick, the more it pays.${started ? " Odds are locked for the tournament." : " Odds and point values lock in about two days before kickoff."}`
+            ? `Predict the tournament's biggest questions. The % next to each option is its market-implied chance from Kalshi, and the points show what a correct pick is worth — the less likely your pick, the more it pays.${started ? " Odds are locked for the tournament." : ""}`
             : "Call every knockout match. Pick the winner of each tie as the bracket fills in; correct calls are worth more the deeper the round. Picks lock once a match is played."}
         </p>
         <div className="mt-3 flex gap-1">
@@ -171,7 +171,6 @@ function FuturesTab({
         {userId
           ? "Saved to your account — your picks sync across devices."
           : "Picks save on this device. Sign in to sync them across devices."}
-        {!started && " Odds may read “—” until betting markets fill in closer to kickoff."}
       </p>
     </div>
   );
@@ -238,7 +237,7 @@ function FutureCard({
       {loading ? (
         <p className="mt-3 text-xs text-slate-400">Loading odds…</p>
       ) : !data || data.outcomes.length === 0 ? (
-        <p className="mt-3 text-xs text-slate-400">No market data yet — check back closer to the tournament.</p>
+        <p className="mt-3 text-xs text-slate-400">No market data available yet.</p>
       ) : data.binary ? (
         <BinaryPicker data={data} pick={pick} onPick={onPick} locked={locked} />
       ) : (
