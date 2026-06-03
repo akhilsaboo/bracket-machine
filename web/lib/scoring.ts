@@ -1,6 +1,7 @@
 // Score a bracket against the current set of match results.
 import type { Fixture } from "@/lib/data";
-import { resolveKnockout } from "@/lib/knockout";
+import { resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/lib/knockout";
+import type { ResolvedFixture } from "@/lib/compute";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 import { gradeGroup, type GroupResult, type TournamentTruth } from "@/lib/results";
 
@@ -155,6 +156,11 @@ export function scoreKnockout(
 ): KnockoutScore {
   const resolved = resolveKnockout(predictions, knockout);
   if (!resolved) return ZERO_KO;
+  return scoreResolvedKnockout(resolved, truth);
+}
+
+/** Core advancement + exact scoring over an already-resolved knockout map. */
+function scoreResolvedKnockout(resolved: Map<number, KOMatch>, truth: TournamentTruth): KnockoutScore {
   const reachers = actualReachersByBucket(truth);
   const out: KnockoutScore = { ...ZERO_KO };
   for (const m of KO_MATCHES) {
@@ -172,6 +178,17 @@ export function scoreKnockout(
     }
   }
   return out;
+}
+
+/** Score a SECOND-CHANCE bracket: knockout-only (no group points), resolved from
+ *  the real Round of 32 rather than the user's group predictions. */
+export function scoreSecondChance(
+  knockout: KnockoutWinners,
+  r32: ResolvedFixture[] | null,
+  truth: TournamentTruth | null,
+): KnockoutScore {
+  if (!r32 || !truth) return ZERO_KO;
+  return scoreResolvedKnockout(resolveKnockoutFrom(r32, knockout), truth);
 }
 
 export interface FullScore {

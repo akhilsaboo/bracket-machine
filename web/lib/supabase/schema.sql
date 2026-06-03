@@ -86,6 +86,9 @@ alter table public.pool_members enable row level security;
 -- Which of the member's brackets is attributed to this pool (nullable; the same
 -- bracket can be attributed to many pools).
 alter table public.pool_members add column if not exists bracket_id uuid references public.brackets(id) on delete set null;
+-- Separate slot for a member's SECOND-CHANCE entry (knockout-only, scored on its
+-- own 🔄 leaderboard). A member can hold both a main and a second-chance entry.
+alter table public.pool_members add column if not exists sc_bracket_id uuid references public.brackets(id) on delete set null;
 
 -- Helper: am I a member of this pool?
 create or replace function public.is_pool_member(pid uuid)

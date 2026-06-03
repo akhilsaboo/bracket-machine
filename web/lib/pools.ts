@@ -15,6 +15,7 @@ export interface PoolMember {
   joined_at: string;
   display_name: string | null;
   bracket_id: string | null;
+  sc_bracket_id: string | null;
 }
 
 export interface MemberBracket {
@@ -24,6 +25,7 @@ export interface MemberBracket {
   knockout: KnockoutWinners;
   submitted_at: string | null;
   tiebreaker_total_goals: number | null;
+  kind?: string; // 'normal' | 'second_chance'
 }
 
 // Friendly alphabet (no O/0/I/1/L to avoid invite-code confusion).
@@ -102,14 +104,19 @@ export async function getPoolMembers(
   // them and the whole query would error → empty list. Fetch names separately.
   const { data, error } = await sb
     .from("pool_members")
-    .select("user_id, joined_at, bracket_id")
+    .select("user_id, joined_at, bracket_id, sc_bracket_id")
     .eq("pool_id", poolId)
     .order("joined_at", { ascending: true });
   if (error) {
     console.error("getPoolMembers error:", error);
     return [];
   }
-  const rows = (data ?? []) as { user_id: string; joined_at: string; bracket_id: string | null }[];
+  const rows = (data ?? []) as {
+    user_id: string;
+    joined_at: string;
+    bracket_id: string | null;
+    sc_bracket_id: string | null;
+  }[];
 
   const ids = rows.map((r) => r.user_id);
   const names = new Map<string, string | null>();
@@ -128,23 +135,27 @@ export async function getPoolMembers(
     user_id: r.user_id,
     joined_at: r.joined_at,
     bracket_id: r.bracket_id ?? null,
+    sc_bracket_id: r.sc_bracket_id ?? null,
     display_name: names.get(r.user_id) ?? null,
   }));
 }
 
-/** Attribute one of my brackets to a pool (or clear it with null). Returns false
- *  if the update errored OR matched no row (so the caller can surface it). */
+/** Attribute one of my brackets to a pool's main or second-chance slot (or clear
+ *  it with null). Returns false if the update errored OR matched no row. */
 export async function setPoolBracket(
   sb: SupabaseClient,
   poolId: string,
   userId: string,
   bracketId: string | null,
+  slot: "main" | "second_chance" = "main",
 ): Promise<{ ok: boolean; error: string | null }> {
+  const col = slot === "second_chance" ? "sc_bracket_id" : "bracket_id";
   // Upsert (not just update) so it works whether or not the membership row is
-  // already present/visible — (pool_id, user_id) is the primary key.
+  // already present/visible — (pool_id, user_id) is the primary key. Only the
+  // chosen slot column is written, leaving the other slot untouched.
   const { data, error } = await sb
     .from("pool_members")
-    .upsert({ pool_id: poolId, user_id: userId, bracket_id: bracketId }, { onConflict: "pool_id,user_id" })
+    .upsert({ pool_id: poolId, user_id: userId, [col]: bracketId }, { onConflict: "pool_id,user_id" })
     .select("user_id");
   if (error) {
     console.error("setPoolBracket error:", error);
@@ -176,7 +187,7 @@ export async function getBracketsByIds(
   if (ids.length === 0) return [];
   const { data, error } = await sb
     .from("brackets")
-    .select("id, user_id, predictions, knockout, submitted_at, tiebreaker_total_goals")
+    .select("id, user_id, predictions, knockout, submitted_at, tiebreaker_total_goals, kind")
     .in("id", ids);
   if (error) {
     console.error("getBracketsByIds error:", error);

@@ -8,9 +8,9 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { SCHEDULE, type Fixture } from "@/lib/data";
 import { isKnockoutStarted, tournamentHasStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
-import { scoreEverything } from "@/lib/scoring";
+import { scoreEverything, scoreSecondChance } from "@/lib/scoring";
 import { upsertBracket } from "@/lib/brackets";
-import { champion, resolveKnockout } from "@/lib/knockout";
+import { champion, resolveKnockout, resolveKnockoutFrom } from "@/lib/knockout";
 import { flag } from "@/lib/flags";
 import { MemberBracketView } from "./MemberBracketView";
 import {
@@ -257,6 +257,7 @@ function PoolDetail({
   const { now, isPreview, brackets: myBrackets, createBracket, allRecords } = usePredictions();
   const [members, setMembers] = useState<PoolMember[]>([]);
   const [brackets, setBrackets] = useState<MemberBracket[]>([]);
+  const [scBrackets, setScBrackets] = useState<MemberBracket[]>([]);
   const [picksSummary, setPicksSummary] = useState<Map<string, UserPicksSummary>>(new Map());
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -264,9 +265,21 @@ function PoolDetail({
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const canViewBrackets = isKnockoutStarted(now);
+  // Single tournament truth (mock in preview, real ESPN feed otherwise).
+  const { truth, groupResultFor, round32 } = useTournament(now, isPreview);
 
-  // My attributed bracket id in THIS pool (null until set).
-  const myEntryId = members.find((m) => m.user_id === currentUserId)?.bracket_id ?? null;
+  // My attributed bracket ids in THIS pool (null until set).
+  const myMember = members.find((m) => m.user_id === currentUserId);
+  const myEntryId = myMember?.bracket_id ?? null;
+  const myScId = myMember?.sc_bracket_id ?? null;
+  // Second-chance entries can be set during the group→knockout window and lock at
+  // knockout kickoff. Real-world deadline (real time) so it's still settable while
+  // previewing — you fill an SC bracket from the real R32 once the groups finish.
+  const scLocked = isKnockoutStarted(new Date());
+  const myScRecord = myScId ? allRecords().find((r) => r.id === myScId) : null;
+  const myScBrackets = myBrackets.filter((b) => b.kind === "second_chance");
+  const myScChampion =
+    myScRecord && round32 ? champion(resolveKnockoutFrom(round32, myScRecord.state.knockout)) : null;
   // Entries lock once the first match kicks off (ESPN-style) — you can't swap to a
   // better-performing bracket mid-tournament. Preview-aware, so "Preview
   // mid-tournament" shows the locked state (no changing or creating an entry).
@@ -278,6 +291,7 @@ function PoolDetail({
     ? champion(resolveKnockout(myEntryRecord.state.predictions, myEntryRecord.state.knockout))
     : null;
   const [chooserOpen, setChooserOpen] = useState(false);
+  const [scChooserOpen, setScChooserOpen] = useState(false);
 
   useEffect(() => {
     const sb = getSupabaseBrowser();
@@ -301,6 +315,9 @@ function PoolDetail({
         .map((m) => (m.bracket_id ? byBracketId.get(m.bracket_id) : byUserFallback.get(m.user_id)))
         .filter((b): b is MemberBracket => !!b);
       setBrackets(resolved);
+      // Second-chance entries (separate slot, separate leaderboard).
+      const scIds = ms.map((m) => m.sc_bracket_id).filter((x): x is string => !!x);
+      setScBrackets(await getBracketsByIds(sb, scIds));
       setLoading(false);
     })();
   }, [pool.id, reloadKey]);
@@ -308,9 +325,10 @@ function PoolDetail({
   const [entryError, setEntryError] = useState<string | null>(null);
   const [transferTo, setTransferTo] = useState("");
 
-  // Assign a bracket as this pool's entry. Upserts the bracket FIRST (a just-
-  // created one may not have synced yet → FK error otherwise), then links it.
-  const assignEntry = async (rec: BracketRecord) => {
+  // Assign a bracket to this pool's main or second-chance slot. Upserts the
+  // bracket FIRST (a just-created one may not have synced yet → FK error
+  // otherwise), then links it.
+  const assignEntry = async (rec: BracketRecord, slot: "main" | "second_chance" = "main") => {
     const sb = getSupabaseBrowser();
     if (!sb) {
       setEntryError("Not signed in / Supabase unavailable.");
@@ -324,25 +342,26 @@ function PoolDetail({
         fail(`Step 1 (save bracket) failed: ${bracketErr}`);
         return;
       }
-      const res = await setPoolBracket(sb, pool.id, currentUserId, rec.id);
+      const res = await setPoolBracket(sb, pool.id, currentUserId, rec.id, slot);
       if (!res.ok) {
         fail(`Step 2 (link to pool) failed: ${res.error ?? "unknown"}`);
         return;
       }
-      // Optimistically reflect it so the UI updates immediately.
+      const col = slot === "second_chance" ? "sc_bracket_id" : "bracket_id";
       setMembers((prev) =>
-        prev.map((m) => (m.user_id === currentUserId ? { ...m, bracket_id: rec.id } : m)),
+        prev.map((m) => (m.user_id === currentUserId ? { ...m, [col]: rec.id } : m)),
       );
       setChooserOpen(false);
+      setScChooserOpen(false);
       setReloadKey((k) => k + 1);
     } catch (e) {
       fail(`Entry error: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
-  const pickEntry = (bracketId: string) => {
+  const pickEntry = (bracketId: string, slot: "main" | "second_chance" = "main") => {
     const rec = allRecords().find((r) => r.id === bracketId);
-    if (rec) void assignEntry(rec);
+    if (rec) void assignEntry(rec, slot);
   };
 
   // Brand-new (or just-joined) members have no entry yet — prompt to pick one,
@@ -350,9 +369,6 @@ function PoolDetail({
   useEffect(() => {
     if (!loading && !myEntryId && !locked) setChooserOpen(true);
   }, [loading, myEntryId, locked]);
-
-  // Single tournament truth (mock in preview, real ESPN feed otherwise).
-  const { truth, groupResultFor } = useTournament(now, isPreview);
 
   // Build the leaderboard: score each member's bracket against the same truth.
   const leaderboard: LeaderboardRow[] = useMemo(() => {
@@ -409,6 +425,28 @@ function PoolDetail({
     );
     return rows;
   }, [members, picksSummary, anyResolved, currentUserId]);
+
+  // 🔄 Second-Chance leaderboard — knockout-only, scored from the real R32.
+  const scLeaderboard = useMemo(() => {
+    const scByUser = new Map(scBrackets.map((b) => [b.user_id, b]));
+    const rows = members
+      .filter((m) => m.sc_bracket_id)
+      .map((m) => {
+        const b = scByUser.get(m.user_id);
+        const score = b ? scoreSecondChance(b.knockout, round32, truth) : null;
+        return {
+          user_id: m.user_id,
+          display_name: m.display_name ?? "Anonymous",
+          isYou: m.user_id === currentUserId,
+          points: score?.points ?? 0,
+          exact: score?.exact ?? 0,
+        };
+      });
+    rows.sort(
+      (a, b) => b.points - a.points || b.exact - a.exact || a.display_name.localeCompare(b.display_name),
+    );
+    return rows;
+  }, [members, scBrackets, round32, truth, currentUserId]);
 
   const copyInvite = async () => {
     try {
@@ -557,11 +595,56 @@ function PoolDetail({
         {entryError && <p className="w-full text-xs text-red-600">{entryError}</p>}
       </div>
 
+      {(round32 || myScBrackets.length > 0 || myScId) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              🔄 Your second-chance entry
+            </div>
+            <p className="text-xs text-slate-500">
+              {scLocked
+                ? "🔒 Locked — the knockout stage has started."
+                : "A knockout-only bracket from the real Round of 32, on its own leaderboard. Set it until the knockouts begin (Jun 28)."}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            {myScRecord ? (
+              <div className="text-right">
+                {myScChampion ? (
+                  <div className="text-sm font-bold">
+                    Your pick: {flag(myScChampion.code)} {myScChampion.name}
+                  </div>
+                ) : (
+                  <div className="text-sm font-medium text-slate-500">No champion picked yet</div>
+                )}
+                <div className="max-w-[12rem] truncate text-[11px] text-slate-400">🔄 {myScRecord.name}</div>
+              </div>
+            ) : (
+              <span className="text-sm text-slate-400">No second-chance entry</span>
+            )}
+            {!scLocked &&
+              (myScBrackets.length > 0 ? (
+                <button
+                  onClick={() => setScChooserOpen(true)}
+                  className="rounded-md border border-[var(--wc-accent)]/40 px-3 py-1.5 text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/10"
+                >
+                  {myScRecord ? "Change" : "Choose entry"}
+                </button>
+              ) : (
+                <span className="text-[11px] text-slate-400">
+                  Make a 🔄 bracket from the switcher first
+                </span>
+              ))}
+          </div>
+          {entryError && <p className="w-full text-xs text-red-600">{entryError}</p>}
+        </div>
+      )}
+
       {chooserOpen && !locked && (
         <ChooseEntryModal
-          brackets={myBrackets}
+          brackets={myBrackets.filter((b) => b.kind !== "second_chance")}
           currentId={myEntryId}
-          onPick={pickEntry}
+          onPick={(id) => pickEntry(id, "main")}
           onCreate={() => {
             // Make a fresh bracket and send them to fill + submit it; they come
             // back and pick it once it's submitted (drafts can't be entries).
@@ -570,6 +653,16 @@ function PoolDetail({
             onGoToGroupTab?.();
           }}
           onClose={() => setChooserOpen(false)}
+        />
+      )}
+
+      {scChooserOpen && !scLocked && (
+        <ChooseEntryModal
+          title="Choose your second-chance entry"
+          brackets={myScBrackets}
+          currentId={myScId}
+          onPick={(id) => pickEntry(id, "second_chance")}
+          onClose={() => setScChooserOpen(false)}
         />
       )}
 
@@ -637,6 +730,55 @@ function PoolDetail({
           exact bracket slot. Ties broken by KO points, then exact predictions, then tiebreaker total-goals.
         </footer>
       </div>
+
+      {(round32 || scLeaderboard.length > 0) && (
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <header className="flex items-center justify-between bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
+            <span>🔄 Second Chance</span>
+            <span className="text-[10px] font-normal text-slate-400">Knockout-only, from the real Round of 32</span>
+          </header>
+          {loading ? (
+            <p className="px-4 py-6 text-sm text-slate-400">Loading…</p>
+          ) : scLeaderboard.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-slate-400">
+              No second-chance entries yet. Once the group stage ends, start a 🔄 Second-Chance bracket
+              from the real Round of 32 and set it as your entry below.
+            </p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-wide text-slate-400">
+                  <th className="w-8 px-3 py-2 text-left">#</th>
+                  <th className="px-3 py-2 text-left">Member</th>
+                  <th className="w-12 px-3 py-2 text-right" title="Exact bracket-slot bonuses">★</th>
+                  <th className="w-16 px-3 py-2 text-right">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scLeaderboard.map((r, i) => (
+                  <tr
+                    key={r.user_id}
+                    className={`border-t border-slate-100 dark:border-slate-800 ${r.isYou ? "bg-[var(--wc-accent)]/5 font-semibold" : ""}`}
+                  >
+                    <td className="px-3 py-2 text-slate-400">{i + 1}</td>
+                    <td className="px-3 py-2">
+                      {r.display_name} {r.isYou && <span className="ml-1 text-[10px] text-[var(--wc-accent)]">YOU</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-emerald-700 dark:text-emerald-300">
+                      {r.exact || ""}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums font-bold">{r.points}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <footer className="border-t border-slate-100 bg-slate-50 px-4 py-3 text-[10px] leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-800/40">
+            Separate board for knockout-only brackets seeded from the real Round of 32 — same advancement
+            scoring (reach a round +pts, +10 exact slot), no group points.
+          </footer>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <header className="flex items-center justify-between bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
@@ -768,12 +910,14 @@ function ChooseEntryModal({
   onPick,
   onCreate,
   onClose,
+  title = "Choose your entry",
 }: {
   brackets: BracketSummary[];
   currentId: string | null;
   onPick: (id: string) => void;
-  onCreate: () => void;
+  onCreate?: () => void;
   onClose: () => void;
+  title?: string;
 }) {
   return (
     <div
@@ -787,9 +931,9 @@ function ChooseEntryModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="brand-gradient px-5 py-4 text-white">
-          <div className="text-lg font-extrabold">Choose your entry</div>
+          <div className="text-lg font-extrabold">{title}</div>
           <p className="text-xs text-white/80">
-            Only a <strong>submitted</strong> bracket can compete. You can change your entry until the first match.
+            Only a <strong>submitted</strong> bracket can compete.
           </p>
         </div>
         <div className="max-h-[55vh] space-y-1 overflow-y-auto p-3">
@@ -816,12 +960,19 @@ function ChooseEntryModal({
               </span>
             </button>
           ))}
-          <button
-            onClick={onCreate}
-            className="mt-1 flex w-full items-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-left text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
-          >
-            ＋ Create a new bracket (fill &amp; submit it, then enter)
-          </button>
+          {onCreate && (
+            <button
+              onClick={onCreate}
+              className="mt-1 flex w-full items-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-left text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
+            >
+              ＋ Create a new bracket (fill &amp; submit it, then enter)
+            </button>
+          )}
+          {brackets.length === 0 && !onCreate && (
+            <p className="px-2 py-3 text-center text-xs text-slate-400">
+              No second-chance brackets yet — make one from the bracket switcher once the group stage ends.
+            </p>
+          )}
         </div>
       </div>
     </div>
