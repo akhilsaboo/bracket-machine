@@ -21,16 +21,33 @@ function serverSupabase(): SupabaseClient | null {
   return url && key ? createClient(url, key) : null;
 }
 
+// The stored snapshot carries the freeze time it was captured for, so a snapshot
+// taken under a different/earlier freeze (e.g. a test) is ignored and re-captured.
+type Snapshot = KalshiMarketData & { frozenForIso?: string };
+
 async function readSnapshot(sb: SupabaseClient, key: string): Promise<KalshiMarketData | null> {
   const { data } = await sb.from("market_snapshots").select("payload").eq("key", key).maybeSingle();
-  return (data?.payload as KalshiMarketData | undefined) ?? null;
+  const p = data?.payload as Snapshot | undefined;
+  if (!p || p.frozenForIso !== ODDS_FREEZE_ISO) return null; // absent or stale-epoch
+  return p;
 }
 
-// Capture once — ignoreDuplicates so the FIRST snapshot wins and never changes.
+// Capture for the current freeze epoch. Within an epoch we only ever write when
+// no valid snapshot exists (so it's effectively capture-once); a new freeze time
+// overwrites the old one.
 async function writeSnapshot(sb: SupabaseClient, key: string, payload: KalshiMarketData): Promise<void> {
+  const marked: Snapshot = { ...payload, frozenForIso: ODDS_FREEZE_ISO };
   await sb
     .from("market_snapshots")
-    .upsert({ key, payload, captured_at: new Date().toISOString() }, { onConflict: "key", ignoreDuplicates: true });
+    .upsert({ key, payload: marked, captured_at: new Date().toISOString() }, { onConflict: "key" });
+}
+
+// When this market's odds freeze. Futures lock ~2 days before kickoff. Per-game
+// knockout markets ("game:*") only open near the knockout stage and get their own
+// per-match freeze (task #20) — never freeze them here, so they stay live.
+function freezeAtFor(key: string): number {
+  if (key.startsWith("game:")) return Number.POSITIVE_INFINITY;
+  return FREEZE_AT;
 }
 
 interface RawMarket {
@@ -117,7 +134,7 @@ export async function GET(req: Request) {
   const ident = cfg.event ?? cfg.series ?? "";
 
   // ── Frozen window: serve the one-time pre-tournament snapshot, never live. ──
-  if (Date.now() >= FREEZE_AT) {
+  if (Date.now() >= freezeAtFor(key)) {
     const sb = serverSupabase();
     if (sb) {
       const snap = await readSnapshot(sb, key);
