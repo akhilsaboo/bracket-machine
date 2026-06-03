@@ -3,13 +3,14 @@
 import { groupFixtures } from "@/lib/data";
 import { groupProgress, groupStandings } from "@/lib/compute";
 import { isLocked, isOver } from "@/lib/schedule";
-import { mockGroupResult } from "@/lib/results";
+import { useTournament } from "@/lib/liveResults";
 import { usePredictions } from "@/lib/predictions";
 import { MatchRow } from "./MatchRow";
 import { StandingsTable } from "./StandingsTable";
 
 export function GroupCard({ group }: { group: string }) {
   const { predictions, now, isPreview } = usePredictions();
+  const { groupResultFor } = useTournament(now, isPreview);
   const fixtures = groupFixtures(group);
   const standings = groupStandings(group, predictions);
   const [done, total] = groupProgress(group, predictions);
@@ -17,11 +18,10 @@ export function GroupCard({ group }: { group: string }) {
   const upcoming = fixtures.filter((f) => !isOver(f, now));
   const over = fixtures.filter((f) => isOver(f, now));
 
-  // Mock results during preview demo; future: real results from a live API.
+  // Real (or preview-mock) result for a fixture, for grading.
   const resultFor = (id: string) => {
-    if (!isPreview) return null;
     const f = fixtures.find((x) => x.id === id);
-    return f ? mockGroupResult(f, now) : null;
+    return f ? groupResultFor(f) : null;
   };
 
   return (

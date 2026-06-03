@@ -8,7 +8,8 @@ import { champion, resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/
 import { flag } from "@/lib/flags";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
-import { buildMockTournament, isKnockoutStarted, realRound32 } from "@/lib/results";
+import { isKnockoutStarted } from "@/lib/results";
+import { useTournament } from "@/lib/liveResults";
 import { knockoutGrader } from "@/lib/scoring";
 import { BracketTree } from "./BracketTree";
 
@@ -32,10 +33,12 @@ export function BracketView() {
   );
 
   const isSecondChance = activeKind === "second_chance";
+  // Tournament truth + real R32: mock under preview, real ESPN feed otherwise.
+  const { truth, round32: realR32 } = useTournament(now, isPreview);
 
   let resolved: Map<number, KOMatch>;
   if (isSecondChance) {
-    const r32 = realRound32(now, isPreview);
+    const r32 = realR32;
     if (!r32) {
       return (
         <div className="mx-auto max-w-md rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
@@ -67,9 +70,8 @@ export function BracketView() {
 
   const onPick = (match: number, code: string) => setKnockoutWinner(match, code);
 
-  // Grade against the independent tournament truth (mock in preview, live feed
-  // later) — same source the pool leaderboards use. Advancement + exact bonus.
-  const truth = isPreview ? buildMockTournament(now) : null;
+  // Grade against the tournament truth (same source the pool leaderboards use).
+  // Advancement + exact bonus.
   const gradePick = truth ? knockoutGrader(truth) : undefined;
 
   const champ = champion(resolved);

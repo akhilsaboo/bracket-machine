@@ -2,7 +2,8 @@
 
 import { SCHEDULE, type Fixture } from "@/lib/data";
 import { hasSchedule, isLocked, splitSchedule, timeLabel } from "@/lib/schedule";
-import { mockGroupResult, PREVIEW_NOW_ISO, tournamentHasStarted } from "@/lib/results";
+import { PREVIEW_NOW_ISO, tournamentHasStarted } from "@/lib/results";
+import { useTournament } from "@/lib/liveResults";
 import { usePredictions } from "@/lib/predictions";
 import { MatchRow } from "./MatchRow";
 
@@ -17,7 +18,8 @@ function MatchLine({
   locked: boolean;
   isPreview: boolean;
 }) {
-  const result = isPreview ? mockGroupResult(f, now) : null;
+  const { groupResultFor } = useTournament(now, isPreview);
+  const result = groupResultFor(f);
   return (
     <div className="flex items-center gap-2 border-b border-slate-100 py-1 last:border-0 dark:border-slate-800">
       <div className="w-16 shrink-0 text-right">

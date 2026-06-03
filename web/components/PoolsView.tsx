@@ -6,13 +6,8 @@ import { usePredictions, type BracketRecord, type BracketSummary } from "@/lib/p
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { SCHEDULE, type Fixture } from "@/lib/data";
-import {
-  buildMockTournament,
-  isKnockoutStarted,
-  mockGroupResult,
-  tournamentHasStarted,
-  type TournamentTruth,
-} from "@/lib/results";
+import { isKnockoutStarted, tournamentHasStarted } from "@/lib/results";
+import { useTournament } from "@/lib/liveResults";
 import { scoreEverything } from "@/lib/scoring";
 import { upsertBracket } from "@/lib/brackets";
 import { champion, resolveKnockout } from "@/lib/knockout";
@@ -356,16 +351,13 @@ function PoolDetail({
     if (!loading && !myEntryId && !locked) setChooserOpen(true);
   }, [loading, myEntryId, locked]);
 
-  // Single tournament truth (mock in preview, future: live from API).
-  const truth: TournamentTruth | null = useMemo(
-    () => (isPreview ? buildMockTournament(now) : null),
-    [isPreview, now],
-  );
+  // Single tournament truth (mock in preview, real ESPN feed otherwise).
+  const { truth, groupResultFor } = useTournament(now, isPreview);
 
   // Build the leaderboard: score each member's bracket against the same truth.
   const leaderboard: LeaderboardRow[] = useMemo(() => {
     const groupFixtures: Fixture[] = SCHEDULE;
-    const resultFor = (f: Fixture) => (isPreview ? mockGroupResult(f, now) : null);
+    const resultFor = groupResultFor;
     const byUser = new Map(brackets.map((b) => [b.user_id, b]));
     const rows: LeaderboardRow[] = members.map((m) => {
       const b = byUser.get(m.user_id);
@@ -391,7 +383,7 @@ function PoolDetail({
         a.display_name.localeCompare(b.display_name),
     );
     return rows;
-  }, [members, brackets, isPreview, now, truth, currentUserId]);
+  }, [members, brackets, groupResultFor, truth, currentUserId]);
 
   // Predictions (Futures) leaderboard — picks made + odds-weighted points.
   const anyResolved = useMemo(

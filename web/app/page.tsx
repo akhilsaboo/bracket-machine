@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { SCHEDULE } from "@/lib/data";
 import { usePredictions } from "@/lib/predictions";
-import { realRound32 } from "@/lib/results";
+import { useTournament } from "@/lib/liveResults";
 
 const SC_BANNER_DISMISSED_KEY = "wc2026-sc-banner-dismissed";
 import { GroupStageView } from "@/components/GroupStageView";
@@ -46,7 +46,7 @@ export default function Home() {
 
   // Once the real R32 is known, surface second-chance brackets — but never
   // duplicate: if one already exists the banner opens it instead of creating.
-  const r32Ready = realRound32(now, isPreview) !== null;
+  const r32Ready = useTournament(now, isPreview).round32 !== null;
   const existingSC = brackets.find((b) => b.kind === "second_chance");
   const showSCBanner = r32Ready && !isSecondChance && !scDismissed;
 

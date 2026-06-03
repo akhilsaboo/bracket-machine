@@ -5,7 +5,8 @@ import { usePredictions, MAX_BRACKETS, type BracketRecord } from "@/lib/predicti
 import { useAuth } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { deleteBracketRow, upsertBracket } from "@/lib/brackets";
-import { realRound32, isKnockoutStarted } from "@/lib/results";
+import { isKnockoutStarted } from "@/lib/results";
+import { useTournament } from "@/lib/liveResults";
 
 const SKIP_DELETE_CONFIRM_KEY = "wc2026-skip-delete-confirm";
 
@@ -29,7 +30,7 @@ export function BracketSwitcher() {
   // Normal brackets can be created right up until the group stage ends; after
   // that they lock, and second-chance brackets (seeded from the real R32) open.
   const groupStageOver = isKnockoutStarted(now);
-  const r32Ready = realRound32(now, isPreview) !== null;
+  const r32Ready = useTournament(now, isPreview).round32 !== null;
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

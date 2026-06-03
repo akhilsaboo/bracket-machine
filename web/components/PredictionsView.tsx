@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FUTURES, fetchFuture, type KalshiMarketData } from "@/lib/kalshi";
 import { flag, flagFromIso2 } from "@/lib/flags";
-import { isKnockoutStarted, tournamentHasStarted, realRound32, buildMockTournament } from "@/lib/results";
+import { isKnockoutStarted, tournamentHasStarted } from "@/lib/results";
+import { useTournament } from "@/lib/liveResults";
 import { resolveKnockoutFrom, type KnockoutWinners, type KOMatch } from "@/lib/knockout";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
@@ -352,16 +353,15 @@ const KO_ORDER = [
 function GamesTab({ picks, setPick }: { picks: Picks; setPick: SetPick; userId: string | null }) {
   const { now, isPreview } = usePredictions();
 
-  // Real knockout state: R32 from real results (preview-derived now; swap for the
-  // live feed later — null in normal mode), with real winners advancing the tree
-  // so matchups unlock as games are played.
-  const r32 = realRound32(now, isPreview);
+  // Real knockout state: R32 + real winners from the tournament truth (mock under
+  // preview, real ESPN feed otherwise). Winners advance the tree so matchups
+  // unlock as games are played.
+  const { round32: r32, truth } = useTournament(now, isPreview);
   const realWinners: KnockoutWinners = useMemo(() => {
-    if (!isPreview) return {};
     const out: KnockoutWinners = {};
-    for (const [k, v] of Object.entries(buildMockTournament(now).knockoutWinners)) out[k] = v;
+    for (const [k, v] of Object.entries(truth?.knockoutWinners ?? {})) out[k] = String(v);
     return out;
-  }, [isPreview, now]);
+  }, [truth]);
   const resolved = useMemo(
     () => (r32 ? resolveKnockoutFrom(r32, realWinners) : null),
     [r32, realWinners],
