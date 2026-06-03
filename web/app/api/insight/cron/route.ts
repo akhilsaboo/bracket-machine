@@ -53,8 +53,19 @@ export async function GET(req: Request) {
     }
   }
 
+  // Resolve prediction picks (Futures via Kalshi settled markets, Games via real
+  // knockout winners) so the 🎯 leaderboard shows earned points.
+  let resolved: unknown = null;
+  try {
+    const auth = secret ? { authorization: `Bearer ${secret}` } : undefined;
+    const rr = await fetch(`${origin}/api/predictions/resolve`, { cache: "no-store", headers: auth });
+    if (rr.ok) resolved = await rr.json();
+  } catch {
+    /* ignore */
+  }
+
   return Response.json(
-    { window: "48h", generated: results.length, results, frozenMarkets },
+    { window: "48h", generated: results.length, results, frozenMarkets, resolved },
     { headers: { "cache-control": "no-store" } },
   );
 }
