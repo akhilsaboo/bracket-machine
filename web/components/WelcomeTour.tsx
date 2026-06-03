@@ -8,32 +8,42 @@ interface Step {
   body: string;
 }
 
-// A quick first-run walkthrough. Kept short on purpose — it's a nudge, not a manual.
+// A quick first-run walkthrough. One punchy line per card — it's a nudge, not a manual.
 const STEPS: Step[] = [
   {
     emoji: "🏆",
     title: "Welcome to Bracket Machine",
-    body: "Build your 2026 World Cup bracket and call the tournament. Here's the 20-second tour — skip anytime.",
+    body: "Build your 2026 World Cup bracket in just a few clicks.",
   },
   {
     emoji: "⚽",
-    title: "Pick every group match",
-    body: "Tap a winner or type a score for each group-stage match. Standings recompute instantly with the full FIFA tiebreakers.",
+    title: "Predict the groups",
+    body: "Pick a winner or score for every group match — your standings update as you go.",
   },
   {
     emoji: "🧩",
     title: "Your bracket builds itself",
-    body: "The knockout bracket fills in automatically from your group results. Advance teams round by round and crown a champion.",
+    body: "Group picks flow into the knockout bracket. Advance teams to crown your champion.",
   },
   {
     emoji: "⚡",
-    title: "In a hurry? Auto-fill it",
-    body: "Don't want to click through 72 matches? Let an AI persona fill the whole bracket — then tweak anything you like.",
+    title: "Short on time?",
+    body: "Let an AI persona auto-fill your whole bracket — then override any pick you want.",
+  },
+  {
+    emoji: "🔄",
+    title: "Second-chance bracket",
+    body: "Busted bracket? When the group stage ends, start fresh from the Round of 32.",
   },
   {
     emoji: "🔮",
-    title: "Predictions & Pools",
-    body: "Call the Winner, Golden Boot and more against live odds in Predictions — then create or join a Pool to compete with friends.",
+    title: "Beyond the bracket",
+    body: "Predict the Winner, Golden Boot, and more against live odds — separate from your bracket picks.",
+  },
+  {
+    emoji: "👥",
+    title: "Play with friends",
+    body: "Create or join a pool and climb a shared leaderboard together.",
   },
 ];
 
