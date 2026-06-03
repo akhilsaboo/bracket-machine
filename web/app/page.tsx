@@ -88,7 +88,10 @@ export default function Home() {
             <img
               src="/logo.jpg"
               alt="Bracket Machine"
-              className="h-11 w-11 shrink-0 rounded-lg shadow ring-1 ring-white/20"
+              // screen blend knocks out the logo's dark background so the brand
+              // gradient shows through instead of a black square.
+              style={{ mixBlendMode: "screen" }}
+              className="-ml-1 h-20 w-20 shrink-0 self-center sm:h-24 sm:w-24"
             />
             <div>
               <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">

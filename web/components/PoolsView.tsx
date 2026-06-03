@@ -267,10 +267,10 @@ function PoolDetail({
 
   // My attributed bracket id in THIS pool (null until set).
   const myEntryId = members.find((m) => m.user_id === currentUserId)?.bracket_id ?? null;
-  // Entries lock once the first match kicks off (ESPN-style). This is a REAL-world
-  // deadline, so use real time — not the preview clock — otherwise previewing
-  // tournament outcomes would wrongly lock entry assignment during testing.
-  const locked = tournamentHasStarted(new Date());
+  // Entries lock once the first match kicks off (ESPN-style) — you can't swap to a
+  // better-performing bracket mid-tournament. Preview-aware, so "Preview
+  // mid-tournament" shows the locked state (no changing or creating an entry).
+  const locked = tournamentHasStarted(now);
   const myEntry = myBrackets.find((b) => b.id === myEntryId) ?? null;
   // The champion the entry bracket predicts (shown as "your pick").
   const myEntryRecord = myEntryId ? allRecords().find((r) => r.id === myEntryId) : null;
@@ -523,8 +523,8 @@ function PoolDetail({
           <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Your entry</div>
           <p className="text-xs text-slate-500">
             {locked
-              ? "🔒 Entries are locked — the tournament has started."
-              : "The bracket you're competing with. Lockable change until the first match (Jun 11)."}
+              ? "🔒 Entries are locked — the tournament has started, so you can't change or create one now."
+              : "The bracket you're competing with. You can change it until the first match (Jun 11)."}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">

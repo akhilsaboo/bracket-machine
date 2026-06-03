@@ -67,8 +67,14 @@ export function WelcomeTour({ onDone }: { onDone: () => void }) {
         </div>
         <div className="brand-gradient mx-5 mb-4 flex h-32 items-center justify-center overflow-hidden rounded-xl text-5xl">
           {step.image ? (
+            // screen blend removes the image's black background → brand gradient shows.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={step.image} alt="" className="h-full w-full object-contain" />
+            <img
+              src={step.image}
+              alt=""
+              style={{ mixBlendMode: "screen" }}
+              className="h-full w-full object-contain"
+            />
           ) : (
             step.emoji
           )}
