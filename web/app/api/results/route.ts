@@ -1,4 +1,7 @@
 import { SCHEDULE } from "@/lib/data";
+import { allGroupsComplete, round32 } from "@/lib/compute";
+import { resolveKnockoutFrom } from "@/lib/knockout";
+import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +23,7 @@ interface ResultsPayload {
 interface EspnCompetitor {
   homeAway?: string;
   score?: string;
+  winner?: boolean;
   team?: { abbreviation?: string };
 }
 interface EspnEvent {
@@ -27,6 +31,14 @@ interface EspnEvent {
   status?: { type?: { state?: string } };
   competitions?: { competitors?: EspnCompetitor[] }[];
 }
+
+// Knockout match numbers in dependency order: R32 (73-88) resolve from the R32,
+// then each later round once its feeders are known (3rd-place + final last).
+const KO_ORDER = [
+  73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88,
+  89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104,
+];
+const pairKey = (a: string, b: string) => [a, b].sort().join("|");
 
 let cache: { data: ResultsPayload; at: number } | null = null;
 const CACHE_MS = 60 * 1000; // 1 min
@@ -41,6 +53,8 @@ export async function GET() {
   for (const f of SCHEDULE) byPair.set(`${f.home}:${f.away}`, f.id);
 
   const groupResults: ResultsPayload["groupResults"] = {};
+  // Knockout winner by team-pair (real KO matches — pairing NOT in the group set).
+  const koWinnerByPair = new Map<string, string>();
   try {
     const r = await fetch(ESPN, { headers: { accept: "application/json" }, cache: "no-store" });
     if (!r.ok) throw new Error(`espn ${r.status}`);
@@ -56,19 +70,47 @@ export async function GET() {
       const home = cs.find((c) => c.homeAway === "home");
       const away = cs.find((c) => c.homeAway === "away");
       if (!home || !away) continue;
-      const id = byPair.get(`${norm(home.team?.abbreviation)}:${norm(away.team?.abbreviation)}`);
-      if (!id || groupResults[id]) continue; // unknown pairing, or already recorded
-      const hg = parseInt(home.score ?? "", 10);
-      const ag = parseInt(away.score ?? "", 10);
-      if (Number.isNaN(hg) || Number.isNaN(ag)) continue;
-      groupResults[id] = { homeGoals: hg, awayGoals: ag };
+      const hc = norm(home.team?.abbreviation);
+      const ac = norm(away.team?.abbreviation);
+      const groupId = byPair.get(`${hc}:${ac}`);
+      if (groupId) {
+        if (groupResults[groupId]) continue; // already recorded
+        const hg = parseInt(home.score ?? "", 10);
+        const ag = parseInt(away.score ?? "", 10);
+        if (Number.isNaN(hg) || Number.isNaN(ag)) continue;
+        groupResults[groupId] = { homeGoals: hg, awayGoals: ag };
+      } else if (hc && ac) {
+        // Not a group fixture → a knockout match. Record the winner (ESPN marks
+        // the winning competitor, so ET/penalties are handled for us).
+        const wc = home.winner ? hc : away.winner ? ac : null;
+        if (wc) koWinnerByPair.set(pairKey(hc, ac), wc);
+      }
     }
   } catch (e) {
     console.error("results fetch error:", e);
     if (cache) return Response.json(cache.data, { headers: { "cache-control": "no-store" } });
   }
 
-  const data: ResultsPayload = { groupResults, knockoutWinners: {}, updatedAt: new Date().toISOString() };
+  // Resolve knockout winners by match number: once all groups are in we know the
+  // real R32, then we walk the bracket and match each tie to a played KO result.
+  const knockoutWinners: Record<number, string> = {};
+  const preds: Predictions = {};
+  for (const [id, res] of Object.entries(groupResults)) preds[id] = { home: res.homeGoals, away: res.awayGoals };
+  if (allGroupsComplete(preds)) {
+    const r32 = round32(preds);
+    if (r32) {
+      const winners: KnockoutWinners = {};
+      for (const m of KO_ORDER) {
+        const km = resolveKnockoutFrom(r32, winners).get(m);
+        if (!km?.home || !km?.away) continue;
+        const w = koWinnerByPair.get(pairKey(km.home.code, km.away.code));
+        if (w) winners[String(m)] = w;
+      }
+      for (const [k, v] of Object.entries(winners)) knockoutWinners[parseInt(k, 10)] = v;
+    }
+  }
+
+  const data: ResultsPayload = { groupResults, knockoutWinners, updatedAt: new Date().toISOString() };
   cache = { data, at: Date.now() };
   return Response.json(data, { headers: { "cache-control": "no-store" } });
 }
