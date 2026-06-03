@@ -6,7 +6,7 @@ import { usePredictions, type BracketRecord, type BracketSummary } from "@/lib/p
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { SCHEDULE, type Fixture } from "@/lib/data";
-import { isKnockoutStarted, tournamentHasStarted } from "@/lib/results";
+import { isKnockoutStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
 import { scoreEverything, scoreSecondChance } from "@/lib/scoring";
 import { upsertBracket } from "@/lib/brackets";
@@ -280,10 +280,11 @@ function PoolDetail({
   const myScBrackets = myBrackets.filter((b) => b.kind === "second_chance");
   const myScChampion =
     myScRecord && round32 ? champion(resolveKnockoutFrom(round32, myScRecord.state.knockout)) : null;
-  // Entries lock once the first match kicks off (ESPN-style) — you can't swap to a
-  // better-performing bracket mid-tournament. Preview-aware, so "Preview
-  // mid-tournament" shows the locked state (no changing or creating an entry).
-  const locked = tournamentHasStarted(now);
+  // Entries lock when the KNOCKOUT stage begins — not the first match. Through the
+  // group stage you keep editing your group picks (each locks at its own kickoff)
+  // and the bracket auto-updates, so the entry stays live until the bracket is
+  // final. Preview-aware → "Preview mid-tournament" shows the locked state.
+  const locked = isKnockoutStarted(now);
   const myEntry = myBrackets.find((b) => b.id === myEntryId) ?? null;
   // The champion the entry bracket predicts (shown as "your pick").
   const myEntryRecord = myEntryId ? allRecords().find((r) => r.id === myEntryId) : null;
@@ -561,8 +562,8 @@ function PoolDetail({
           <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Your entry</div>
           <p className="text-xs text-slate-500">
             {locked
-              ? "🔒 Entries are locked — the tournament has started, so you can't change or create one now."
-              : "The bracket you're competing with. You can change it until the first match (Jun 11)."}
+              ? "🔒 Entries are locked — the knockout stage has started, so you can't change or create one now."
+              : "The bracket you're competing with. Tweak your group picks anytime — your bracket updates automatically — right up until the knockouts begin (Jun 28)."}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
