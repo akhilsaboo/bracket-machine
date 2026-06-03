@@ -8,7 +8,7 @@ import { champion, resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/
 import { flag } from "@/lib/flags";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
-import { buildMockTournament, realRound32 } from "@/lib/results";
+import { buildMockTournament, isKnockoutStarted, realRound32 } from "@/lib/results";
 import { knockoutGrader } from "@/lib/scoring";
 import { BracketTree } from "./BracketTree";
 
@@ -74,7 +74,12 @@ export function BracketView() {
 
   const champ = champion(resolved);
   const thirds = isSecondChance ? [] : thirdPlaceRanking(predictions);
-  const canSubmit = !!champ && !bracketSubmitted;
+  // A normal bracket locks once the knockout stage begins — by then the group
+  // stage is over and your predictions are final. (Second-chance brackets are
+  // meant to be filled during the knockouts, so they stay editable.) Uses the
+  // preview-aware clock, so "Preview mid-tournament" shows the locked state.
+  const locked = !isSecondChance && isKnockoutStarted(now);
+  const canSubmit = !!champ && !bracketSubmitted && !locked;
 
   const confirmSubmit = () => {
     // The tiebreaker is optional — submit with null when left blank.
@@ -88,14 +93,20 @@ export function BracketView() {
 
   return (
     <div className="space-y-8">
-      {bracketSubmitted && (
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-          <span>✓ Bracket submitted</span>
-          {tiebreakerGoals !== null && <span className="opacity-70">· Tiebreaker: {tiebreakerGoals} goals</span>}
+      {locked ? (
+        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-4 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          🔒 Bracket locked — the knockout stage has started. Want back in? Try a Second-Chance bracket.
         </div>
+      ) : (
+        bracketSubmitted && (
+          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <span>✓ Bracket submitted</span>
+            {tiebreakerGoals !== null && <span className="opacity-70">· Tiebreaker: {tiebreakerGoals} goals</span>}
+          </div>
+        )
       )}
 
-      <BracketTree resolved={resolved} onPick={onPick} gradePick={gradePick} />
+      <BracketTree resolved={resolved} onPick={locked ? undefined : onPick} gradePick={gradePick} />
 
       {canSubmit && (
         <div className="sticky bottom-4 flex flex-col items-center gap-1">
