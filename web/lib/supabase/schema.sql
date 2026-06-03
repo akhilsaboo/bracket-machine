@@ -227,3 +227,20 @@ create policy "prediction_picks: owner all" on public.prediction_picks
 drop policy if exists "prediction_picks: pool mates read" on public.prediction_picks;
 create policy "prediction_picks: pool mates read" on public.prediction_picks for select
   using (user_id = auth.uid() or public.shares_pool_with(user_id));
+
+-- 6. Frozen market snapshots (Kalshi odds locked ~2 days before kickoff) --------
+-- One row per futures market key; captured once and never overwritten so the
+-- displayed odds + point values stay stable through the tournament. Non-sensitive
+-- public cache (written by the server route / cron), same policy shape as insights.
+create table if not exists public.market_snapshots (
+  key text primary key,
+  payload jsonb not null,
+  captured_at timestamptz not null default now()
+);
+alter table public.market_snapshots enable row level security;
+drop policy if exists "market_snapshots: public read"   on public.market_snapshots;
+drop policy if exists "market_snapshots: public insert" on public.market_snapshots;
+drop policy if exists "market_snapshots: public update" on public.market_snapshots;
+create policy "market_snapshots: public read"   on public.market_snapshots for select using (true);
+create policy "market_snapshots: public insert" on public.market_snapshots for insert with check (true);
+create policy "market_snapshots: public update" on public.market_snapshots for update using (true) with check (true);

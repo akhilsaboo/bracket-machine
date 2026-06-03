@@ -1,4 +1,5 @@
 import { SCHEDULE } from "@/lib/data";
+import { FUTURES, ODDS_FREEZE_ISO } from "@/lib/kalshi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,8 +39,22 @@ export async function GET(req: Request) {
     }
   }
 
+  // Odds freeze: once we're past the freeze time, ping each futures market so the
+  // route captures its one-time snapshot (idempotent — first snapshot is kept).
+  let frozenMarkets = 0;
+  if (now >= new Date(ODDS_FREEZE_ISO).getTime()) {
+    for (const f of FUTURES) {
+      try {
+        const r = await fetch(`${origin}/api/kalshi?key=${f.key}`, { cache: "no-store" });
+        if (r.ok) frozenMarkets++;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   return Response.json(
-    { window: "48h", generated: results.length, results },
+    { window: "48h", generated: results.length, results, frozenMarkets },
     { headers: { "cache-control": "no-store" } },
   );
 }

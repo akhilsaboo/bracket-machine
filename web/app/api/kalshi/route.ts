@@ -1,11 +1,37 @@
-import { FUTURE_BY_KEY, flagIso2For, type KalshiMarketData, type KalshiOutcome } from "@/lib/kalshi";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  FUTURE_BY_KEY,
+  flagIso2For,
+  ODDS_FREEZE_ISO,
+  type KalshiMarketData,
+  type KalshiOutcome,
+} from "@/lib/kalshi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const KALSHI = "https://external-api.kalshi.com/trade-api/v2";
 const CACHE_MS = 10 * 60 * 1000; // 10 min — "fresh, not live-live"
+const FREEZE_AT = new Date(ODDS_FREEZE_ISO).getTime();
 const cache = new Map<string, { data: KalshiMarketData; at: number }>();
+
+function serverSupabase(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return url && key ? createClient(url, key) : null;
+}
+
+async function readSnapshot(sb: SupabaseClient, key: string): Promise<KalshiMarketData | null> {
+  const { data } = await sb.from("market_snapshots").select("payload").eq("key", key).maybeSingle();
+  return (data?.payload as KalshiMarketData | undefined) ?? null;
+}
+
+// Capture once — ignoreDuplicates so the FIRST snapshot wins and never changes.
+async function writeSnapshot(sb: SupabaseClient, key: string, payload: KalshiMarketData): Promise<void> {
+  await sb
+    .from("market_snapshots")
+    .upsert({ key, payload, captured_at: new Date().toISOString() }, { onConflict: "key", ignoreDuplicates: true });
+}
 
 interface RawMarket {
   ticker: string;
@@ -49,18 +75,10 @@ function probOf(m: RawMarket): number | null {
   return null;
 }
 
-export async function GET(req: Request) {
-  const key = new URL(req.url).searchParams.get("key") ?? "";
-  const cfg = FUTURE_BY_KEY[key];
-  if (!cfg) return Response.json({ error: "unknown market" }, { status: 400 });
+type Cfg = (typeof FUTURE_BY_KEY)[string];
 
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_MS) {
-    return Response.json(hit.data, { headers: { "cache-control": "no-store" } });
-  }
-
+async function fetchLive(cfg: Cfg, key: string, ident: string): Promise<KalshiMarketData> {
   const filter = cfg.event ? `event_ticker=${cfg.event}` : `series_ticker=${cfg.series}`;
-  const ident = cfg.event ?? cfg.series ?? "";
   try {
     const r = await fetch(`${KALSHI}/markets?${filter}&limit=500`, {
       headers: { accept: "application/json" },
@@ -69,15 +87,13 @@ export async function GET(req: Request) {
     if (!r.ok) throw new Error(`kalshi ${r.status}`);
     const raw = (await r.json()) as { markets?: RawMarket[] };
     const markets = raw.markets ?? [];
-
     const outcomes: KalshiOutcome[] = markets
       .map((m) => {
         const label = m.yes_sub_title || m.ticker;
         return { ticker: m.ticker, label, prob: probOf(m), flagIso2: flagIso2For(label) };
       })
       .sort((a, b) => (b.prob ?? -1) - (a.prob ?? -1));
-
-    const data: KalshiMarketData = {
+    return {
       key,
       series: ident,
       title: cfg.title,
@@ -85,15 +101,48 @@ export async function GET(req: Request) {
       outcomes,
       fetchedAt: new Date().toISOString(),
     };
-    cache.set(key, { data, at: Date.now() });
-    return Response.json(data, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     console.error("kalshi fetch error:", e);
-    // Serve stale cache if we have it; else an empty shell.
-    if (hit) return Response.json(hit.data, { headers: { "cache-control": "no-store" } });
-    return Response.json(
-      { key, series: ident, title: cfg.title, binary: false, outcomes: [], fetchedAt: new Date().toISOString() } satisfies KalshiMarketData,
-      { headers: { "cache-control": "no-store" } },
-    );
+    return { key, series: ident, title: cfg.title, binary: false, outcomes: [], fetchedAt: new Date().toISOString() };
   }
+}
+
+const json = (data: KalshiMarketData) =>
+  Response.json(data, { headers: { "cache-control": "no-store" } });
+
+export async function GET(req: Request) {
+  const key = new URL(req.url).searchParams.get("key") ?? "";
+  const cfg = FUTURE_BY_KEY[key];
+  if (!cfg) return Response.json({ error: "unknown market" }, { status: 400 });
+  const ident = cfg.event ?? cfg.series ?? "";
+
+  // ── Frozen window: serve the one-time pre-tournament snapshot, never live. ──
+  if (Date.now() >= FREEZE_AT) {
+    const sb = serverSupabase();
+    if (sb) {
+      const snap = await readSnapshot(sb, key);
+      if (snap) return json({ ...snap, frozen: true });
+      // First request after the freeze → capture live now and lock it in.
+      const live = await fetchLive(cfg, key, ident);
+      if (live.outcomes.length > 0) {
+        await writeSnapshot(sb, key, live);
+        const stored = (await readSnapshot(sb, key)) ?? live;
+        return json({ ...stored, frozen: true });
+      }
+      return json({ ...live, frozen: true });
+    }
+    // No Supabase configured — fall back to live (can't persist a snapshot).
+    return json(await fetchLive(cfg, key, ident));
+  }
+
+  // ── Pre-freeze: live with a short module cache. ──
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_MS) return json(hit.data);
+  const data = await fetchLive(cfg, key, ident);
+  if (data.outcomes.length > 0) {
+    cache.set(key, { data, at: Date.now() });
+    return json(data);
+  }
+  // Empty result — prefer a recent good cache if we have one.
+  return json(hit?.data ?? data);
 }

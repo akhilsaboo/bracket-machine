@@ -90,7 +90,14 @@ export interface KalshiMarketData {
   binary: boolean;
   outcomes: KalshiOutcome[]; // sorted by prob desc
   fetchedAt: string;
+  /** true once odds are frozen (served from the pre-tournament snapshot). */
+  frozen?: boolean;
 }
+
+// Odds freeze: ~2 days before kickoff (Jun 11, 17:00 UTC) we snapshot each
+// market once and stop pulling live, so percentages + point values stay stable
+// through the tournament (Kalshi markets settle/close and prices vanish).
+export const ODDS_FREEZE_ISO = "2026-06-09T17:00:00Z";
 
 /** Client fetch for one future's market data (cached server-side). */
 export async function fetchFuture(key: string): Promise<KalshiMarketData | null> {

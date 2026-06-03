@@ -201,7 +201,17 @@ function FutureCard({
       <div className="flex items-center gap-2">
         <span className="text-xl leading-none">{cfg.icon}</span>
         <div className="min-w-0 flex-1">
-          <div className="font-bold">{cfg.title}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold">{cfg.title}</span>
+            {data?.frozen && (
+              <span
+                className="rounded bg-slate-100 px-1 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                title="Odds locked for the tournament"
+              >
+                🔒 locked
+              </span>
+            )}
+          </div>
           <div className="text-xs text-slate-500 dark:text-slate-400">{cfg.subtitle}</div>
         </div>
         {pick && (
