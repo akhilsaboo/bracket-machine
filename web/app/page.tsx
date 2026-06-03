@@ -86,12 +86,12 @@ export default function Home() {
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo.jpg"
+              src="/logo.png"
               alt="Bracket Machine"
-              // screen blend knocks out the logo's dark background; the filter
-              // brightens/saturates the emblem so it isn't faint over the gradient.
-              style={{ mixBlendMode: "screen", filter: "brightness(1.7) contrast(1.25) saturate(1.35)" }}
-              className="-ml-1 h-20 w-20 shrink-0 self-center sm:h-24 sm:w-24"
+              // Circular-cropped transparent PNG — vivid emblem, dark outer ring,
+              // gradient showing through the corners. A touch of saturation pops the blue.
+              style={{ filter: "saturate(1.2) contrast(1.05)" }}
+              className="-ml-1 h-20 w-20 shrink-0 self-center drop-shadow sm:h-24 sm:w-24"
             />
             <div>
               <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">

@@ -13,7 +13,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     emoji: "🏆",
-    image: "/trophy.jpeg",
+    image: "/trophy.png",
     title: "Welcome to Bracket Machine",
     body: "Build your 2026 World Cup bracket in just a few clicks.",
   },
@@ -67,13 +67,12 @@ export function WelcomeTour({ onDone }: { onDone: () => void }) {
         </div>
         <div className="brand-gradient mx-5 mb-4 flex h-32 items-center justify-center overflow-hidden rounded-xl text-5xl">
           {step.image ? (
-            // screen blend removes the image's black background → brand gradient shows.
+            // Transparent PNG (black keyed out) → brand gradient shows behind it.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={step.image}
               alt=""
-              style={{ mixBlendMode: "screen", filter: "brightness(1.7) contrast(1.25) saturate(1.35)" }}
-              className="h-full w-full object-contain"
+              className="h-full w-full object-contain drop-shadow"
             />
           ) : (
             step.emoji
