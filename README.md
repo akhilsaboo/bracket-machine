@@ -57,7 +57,8 @@ Set in Vercel (and `web/.env.local` for local dev). The app degrades gracefully 
 | `ANTHROPIC_API_KEY` | Claude — generates matchup insights | 📰 shows "not turned on yet" |
 | `GOOGLE_TTS_API_KEY` | Google Cloud TTS — natural spoken recap | Falls back to browser speech synthesis |
 | `THE_ODDS_API_KEY` | The Odds API — win-probability bars | Bars hidden (AI text still works) |
-| `CRON_SECRET` | Auth for the daily insight pre-gen cron | Cron runs unprotected |
+| `CRON_SECRET` | Auth for the daily cron (insights + odds freeze + pick resolution) | Cron runs unprotected |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side pick resolution (settles `prediction_picks.correct`) | 🎯 leaderboard stays "potential" (never resolves to earned) |
 
 ⚠️ Supabase schema lives in `web/lib/supabase/schema.sql` — paste/run it in the Supabase SQL Editor (idempotent) after any change; it is **not** auto-applied.
 
