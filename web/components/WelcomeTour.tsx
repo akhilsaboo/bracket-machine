@@ -72,7 +72,7 @@ export function WelcomeTour({ onDone }: { onDone: () => void }) {
             <img
               src={step.image}
               alt=""
-              style={{ mixBlendMode: "screen" }}
+              style={{ mixBlendMode: "screen", filter: "brightness(1.7) contrast(1.25) saturate(1.35)" }}
               className="h-full w-full object-contain"
             />
           ) : (
