@@ -153,8 +153,19 @@ function FuturesTab({
 }) {
   return (
     <div className="space-y-3">
+      {started && (
+        <div className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          🔒 Predictions are locked — the tournament has started.
+        </div>
+      )}
       {FUTURES.map((f) => (
-        <FutureCard key={f.key} futureKey={f.key} pick={picks[f.key] ?? null} onPick={(p) => setPick(f.key, p)} />
+        <FutureCard
+          key={f.key}
+          futureKey={f.key}
+          pick={picks[f.key] ?? null}
+          onPick={(p) => setPick(f.key, p)}
+          locked={started}
+        />
       ))}
       <p className="text-[11px] text-slate-400">
         {userId
@@ -170,10 +181,12 @@ function FutureCard({
   futureKey,
   pick,
   onPick,
+  locked,
 }: {
   futureKey: string;
   pick: Pick | null;
   onPick: (p: Pick | null) => void;
+  locked: boolean;
 }) {
   const cfg = FUTURES.find((f) => f.key === futureKey)!;
   const [data, setData] = useState<KalshiMarketData | null>(null);
@@ -215,7 +228,7 @@ function FutureCard({
           </div>
           <div className="text-xs text-slate-500 dark:text-slate-400">{cfg.subtitle}</div>
         </div>
-        {pick && (
+        {pick && !locked && (
           <button onClick={() => onPick(null)} className="text-[11px] text-slate-400 hover:text-red-600">
             clear
           </button>
@@ -227,7 +240,7 @@ function FutureCard({
       ) : !data || data.outcomes.length === 0 ? (
         <p className="mt-3 text-xs text-slate-400">No market data yet — check back closer to the tournament.</p>
       ) : data.binary ? (
-        <BinaryPicker data={data} pick={pick} onPick={onPick} />
+        <BinaryPicker data={data} pick={pick} onPick={onPick} locked={locked} />
       ) : (
         <>
           <div className="mt-3 space-y-1">
@@ -236,12 +249,13 @@ function FutureCard({
               return (
                 <button
                   key={o.ticker}
+                  disabled={locked}
                   onClick={() => onPick({ ticker: o.ticker, label: o.label, prob: o.prob, flagIso2: o.flagIso2 })}
                   className={`flex w-full items-center justify-between rounded-lg border px-3 py-1.5 text-left text-sm transition ${
                     selected
                       ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10 font-semibold"
-                      : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
-                  }`}
+                      : `border-slate-200 dark:border-slate-700 ${locked ? "" : "hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5"}`
+                  } ${locked ? "cursor-default" : ""}`}
                 >
                   <span className="flex min-w-0 items-center gap-1.5">
                     {o.flagIso2 && <span className="shrink-0 leading-none">{flagFromIso2(o.flagIso2)}</span>}
@@ -285,10 +299,12 @@ function BinaryPicker({
   data,
   pick,
   onPick,
+  locked,
 }: {
   data: KalshiMarketData;
   pick: Pick | null;
   onPick: (p: Pick | null) => void;
+  locked: boolean;
 }) {
   const yes = data.outcomes[0];
   const yesProb = yes?.prob ?? null;
@@ -305,12 +321,13 @@ function BinaryPicker({
         return (
           <button
             key={o.ticker}
+            disabled={locked}
             onClick={() => onPick({ ticker: o.ticker, label: o.label, prob: o.prob })}
             className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
               selected
                 ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10"
-                : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
-            }`}
+                : `border-slate-200 dark:border-slate-700 ${locked ? "" : "hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5"}`
+            } ${locked ? "cursor-default" : ""}`}
           >
             {o.label} <span className="tabular-nums text-slate-500">{o.prob == null ? "—" : `${o.prob}%`}</span>
             {pts(o.prob) != null && <span className="ml-1 text-[11px] text-[var(--wc-accent)]">· {pts(o.prob)} pts</span>}
