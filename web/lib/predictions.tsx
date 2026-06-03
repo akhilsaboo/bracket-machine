@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { applyResetEpoch } from "@/lib/resetEpoch";
 
 export interface Score {
   home: number | null;
@@ -168,6 +169,9 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
 
   // Hydrate from localStorage (with one-time migration from the single-bracket key).
   useEffect(() => {
+    // Launch reset: if RESET_EPOCH was bumped, wipe local state so the browser
+    // starts fresh and re-onboards. Runs before any reads below.
+    applyResetEpoch();
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
