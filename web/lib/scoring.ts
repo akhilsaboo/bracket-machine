@@ -129,8 +129,14 @@ export interface KOPickGrade {
   exact: boolean; // ...and won this exact bracket slot in reality (+bonus)
 }
 
+// Matches per knockout round — a round is "resolved" once this many winners exist.
+const ROUND_SIZE: Record<KOBucket, number> = { r32: 16, r16: 8, qf: 4, sf: 2, third: 1, champion: 1 };
+
 /** A reusable grader for the bracket display: did a picked team advance / nail
- *  the exact slot? Built once from the truth so per-slot lookups are cheap. */
+ *  the exact slot? Built once from the truth so per-slot lookups are cheap.
+ *  Returns null (UNGRADED) until there's real data: a pick goes green as soon as
+ *  the team actually advances, but only goes red once that round is fully
+ *  resolved — so nothing grades pre-tournament or mid-round. */
 export function knockoutGrader(
   truth: TournamentTruth,
 ): (matchNo: number, pickedCode: string | undefined) => KOPickGrade | null {
@@ -139,10 +145,12 @@ export function knockoutGrader(
     if (!pickedCode) return null;
     const b = bucketOf(matchNo);
     if (!b) return null;
-    return {
-      advanced: reachers[b].has(pickedCode),
-      exact: truth.knockoutWinners[matchNo] === pickedCode,
-    };
+    if (reachers[b].has(pickedCode)) {
+      return { advanced: true, exact: truth.knockoutWinners[matchNo] === pickedCode };
+    }
+    // Not advanced → only call it wrong once the whole round has results in.
+    if (reachers[b].size >= ROUND_SIZE[b]) return { advanced: false, exact: false };
+    return null; // round not resolved yet → leave ungraded
   };
 }
 
