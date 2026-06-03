@@ -13,7 +13,7 @@
 // Supabase and will re-sync after the wipe (the tour still re-shows). It does not
 // delete any server data.
 
-export const RESET_EPOCH = "1";
+export const RESET_EPOCH = "2";
 
 const EPOCH_KEY = "wc2026-epoch";
 const PREFIX = "wc2026-";
