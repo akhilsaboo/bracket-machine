@@ -6,12 +6,14 @@ interface Step {
   emoji: string;
   title: string;
   body: string;
+  image?: string; // optional hero image (shown instead of the emoji)
 }
 
 // A quick first-run walkthrough. One punchy line per card — it's a nudge, not a manual.
 const STEPS: Step[] = [
   {
     emoji: "🏆",
+    image: "/trophy.jpeg",
     title: "Welcome to Bracket Machine",
     body: "Build your 2026 World Cup bracket in just a few clicks.",
   },
@@ -63,8 +65,13 @@ export function WelcomeTour({ onDone }: { onDone: () => void }) {
             Skip
           </button>
         </div>
-        <div className="brand-gradient mx-5 mb-4 flex h-24 items-center justify-center rounded-xl text-5xl">
-          {step.emoji}
+        <div className="brand-gradient mx-5 mb-4 flex h-32 items-center justify-center overflow-hidden rounded-xl text-5xl">
+          {step.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={step.image} alt="" className="h-full w-full object-contain" />
+          ) : (
+            step.emoji
+          )}
         </div>
         <div className="px-6 pb-2 text-center">
           <h3 className="text-lg font-extrabold">{step.title}</h3>

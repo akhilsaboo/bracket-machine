@@ -6,6 +6,7 @@ import { usePredictions } from "@/lib/predictions";
 import { useTournament } from "@/lib/liveResults";
 
 const SC_BANNER_DISMISSED_KEY = "wc2026-sc-banner-dismissed";
+const RESET_CONFIRM_SKIP_KEY = "wc2026-skip-reset-confirm";
 import { GroupStageView } from "@/components/GroupStageView";
 import { ScheduleView } from "@/components/ScheduleView";
 import { BracketView } from "@/components/BracketView";
@@ -33,6 +34,19 @@ export default function Home() {
   useEffect(() => {
     setScDismissed(localStorage.getItem(SC_BANNER_DISMISSED_KEY) === "1");
   }, []);
+
+  // Reset confirmation (with a "don't ask again" opt-out).
+  const [pendingReset, setPendingReset] = useState(false);
+  const [dontAskReset, setDontAskReset] = useState(false);
+  const handleReset = () => {
+    if (localStorage.getItem(RESET_CONFIRM_SKIP_KEY) === "1") reset();
+    else setPendingReset(true);
+  };
+  const confirmReset = () => {
+    if (dontAskReset) localStorage.setItem(RESET_CONFIRM_SKIP_KEY, "1");
+    reset();
+    setPendingReset(false);
+  };
 
   const predicted = SCHEDULE.filter((f) => {
     const s = predictions[f.id];
@@ -69,13 +83,21 @@ export default function Home() {
     <div className="flex min-h-full flex-col">
       <header className="brand-gradient text-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">
-              World Cup 2026 Bracket Machine
-            </h1>
-            <p className="text-xs text-white/80">
-              Pick every score. Your bracket builds itself — full FIFA tiebreakers, live.
-            </p>
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.jpg"
+              alt="Bracket Machine"
+              className="h-11 w-11 shrink-0 rounded-lg shadow ring-1 ring-white/20"
+            />
+            <div>
+              <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">
+                World Cup 2026 Bracket Machine
+              </h1>
+              <p className="text-xs text-white/80">
+                Pick every score. Your bracket builds itself — full FIFA tiebreakers, live.
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="rounded-full bg-white/15 px-3 py-1 font-medium tabular-nums">
@@ -83,7 +105,7 @@ export default function Home() {
             </span>
             <BracketSwitcher />
             <button
-              onClick={reset}
+              onClick={handleReset}
               className="rounded-full bg-white/15 px-3 py-1 font-medium transition hover:bg-white/25"
             >
               Reset
@@ -145,6 +167,44 @@ export default function Home() {
         {effectiveTab === "awards" && <PredictionsView />}
         {effectiveTab === "pools" && <PoolsView onGoToGroupTab={() => setTab("group")} />}
       </main>
+
+      {pendingReset && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4 text-slate-800 dark:text-slate-100"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPendingReset(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-base font-bold">Reset this bracket?</div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              This clears all your score picks and knockout selections for the active bracket. This
+              can&apos;t be undone.
+            </p>
+            <label className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <input type="checkbox" checked={dontAskReset} onChange={(e) => setDontAskReset(e.target.checked)} />
+              Don&apos;t ask me again
+            </label>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setPendingReset(false)}
+                className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReset}
+                className="flex-1 rounded-md bg-red-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-700"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
