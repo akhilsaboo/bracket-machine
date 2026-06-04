@@ -247,3 +247,16 @@ drop policy if exists "market_snapshots: public update" on public.market_snapsho
 create policy "market_snapshots: public read"   on public.market_snapshots for select using (true);
 create policy "market_snapshots: public insert" on public.market_snapshots for insert with check (true);
 create policy "market_snapshots: public update" on public.market_snapshots for update using (true) with check (true);
+
+-- 7. Email reminders -----------------------------------------------------------
+-- Per-user opt-out for the pre-tournament reminder emails.
+alter table public.profiles add column if not exists email_opt_out boolean not null default false;
+
+-- Which reminder milestones have already gone out (so none re-fire). Written by
+-- the server cron via the service role; not client-readable.
+create table if not exists public.email_reminders_log (
+  milestone_key text primary key,
+  sent_at timestamptz not null default now()
+);
+alter table public.email_reminders_log enable row level security;
+-- No policies → only the service role (which bypasses RLS) can read/write it.

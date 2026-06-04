@@ -64,8 +64,18 @@ export async function GET(req: Request) {
     /* ignore */
   }
 
+  // Pre-tournament email reminders (nudge signed-up non-submitters).
+  let reminders: unknown = null;
+  try {
+    const auth = secret ? { authorization: `Bearer ${secret}` } : undefined;
+    const rr = await fetch(`${origin}/api/reminders`, { cache: "no-store", headers: auth });
+    if (rr.ok) reminders = await rr.json();
+  } catch {
+    /* ignore */
+  }
+
   return Response.json(
-    { window: "48h", generated: results.length, results, frozenMarkets, resolved },
+    { window: "48h", generated: results.length, results, frozenMarkets, resolved, reminders },
     { headers: { "cache-control": "no-store" } },
   );
 }

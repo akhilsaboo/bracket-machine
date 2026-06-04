@@ -1,0 +1,105 @@
+import { createHmac } from "crypto";
+import { TOURNAMENT_START_ISO } from "@/lib/results";
+
+// ── Email reminders (ESPN-style): nudge signed-up users who haven't submitted a
+// bracket, as the tournament nears. Sends via Resend (https://resend.com); inert
+// until RESEND_API_KEY is set. Every email carries a one-click unsubscribe link.
+
+const RESEND_URL = "https://api.resend.com/emails";
+const APP_URL = "https://bracketmachine.app";
+
+/** Reminder milestones, by calendar day before the tournament starts (Jun 11). */
+export interface Milestone {
+  key: string;
+  daysBefore: number;
+  subject: string;
+  headline: string;
+  body: string;
+}
+export const MILESTONES: Milestone[] = [
+  {
+    key: "d7",
+    daysBefore: 7,
+    subject: "⚽ One week to the World Cup — lock in your bracket",
+    headline: "The 2026 World Cup is one week away",
+    body: "Your bracket isn't in yet. Pick every group and build your knockout run before the games begin.",
+  },
+  {
+    key: "d3",
+    daysBefore: 3,
+    subject: "3 days left to fill your World Cup bracket",
+    headline: "Three days until kickoff",
+    body: "There's still time to make your picks and get into a pool with friends — don't get left out.",
+  },
+  {
+    key: "d1",
+    daysBefore: 1,
+    subject: "⏳ Kickoff is tomorrow — finish your bracket",
+    headline: "The World Cup kicks off tomorrow",
+    body: "Last full day to set your bracket. Make your picks now so you're ready when the first whistle blows.",
+  },
+  {
+    key: "d0",
+    daysBefore: 0,
+    subject: "🚨 The World Cup starts today — final hours for your bracket",
+    headline: "It's matchday — the World Cup starts today",
+    body: "Final hours to lock in your picks before the action begins. Don't miss it!",
+  },
+];
+
+/** UTC calendar date (YYYY-MM-DD) a milestone should first fire on. */
+export function milestoneDate(m: Milestone): string {
+  const d = new Date(TOURNAMENT_START_ISO);
+  d.setUTCDate(d.getUTCDate() - m.daysBefore);
+  return d.toISOString().slice(0, 10);
+}
+
+// ── Unsubscribe tokens (HMAC of the user id, so links can't be forged) ──
+function tokenSecret(): string {
+  return process.env.CRON_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "dev-secret";
+}
+export function unsubToken(userId: string): string {
+  return createHmac("sha256", tokenSecret()).update(userId).digest("hex").slice(0, 24);
+}
+export function verifyUnsub(userId: string, token: string): boolean {
+  return !!userId && !!token && unsubToken(userId) === token;
+}
+export function unsubUrl(userId: string): string {
+  return `${APP_URL}/api/reminders/unsubscribe?u=${userId}&t=${unsubToken(userId)}`;
+}
+
+export function reminderHtml(m: Milestone, userId: string): string {
+  const unsub = unsubUrl(userId);
+  return `<!doctype html><html><body style="margin:0;background:#0f172a;font-family:Arial,Helvetica,sans-serif">
+  <div style="max-width:520px;margin:0 auto;padding:24px">
+    <div style="background:linear-gradient(135deg,#7c3aed,#db2777);border-radius:16px;padding:28px 24px;text-align:center;color:#fff">
+      <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;opacity:.9;font-weight:bold">Bracket Machine</div>
+      <div style="font-size:22px;font-weight:800;margin-top:8px">${m.headline}</div>
+    </div>
+    <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;color:#0f172a">
+      <p style="font-size:15px;line-height:1.5;margin:0 0 20px">${m.body}</p>
+      <a href="${APP_URL}" style="display:block;background:#db2777;color:#fff;text-decoration:none;text-align:center;font-weight:700;padding:14px;border-radius:10px;font-size:15px">Build your bracket →</a>
+    </div>
+    <p style="text-align:center;color:#64748b;font-size:11px;line-height:1.6;margin-top:18px">
+      You're getting this because you signed up at bracketmachine.app.<br/>
+      <a href="${unsub}" style="color:#94a3b8">Unsubscribe from reminders</a>
+    </p>
+  </div></body></html>`;
+}
+
+/** Send one email via Resend. Returns true on success; false if not configured. */
+export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return false;
+  const from = process.env.REMINDER_FROM ?? "Bracket Machine <onboarding@resend.dev>";
+  try {
+    const r = await fetch(RESEND_URL, {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ from, to, subject, html }),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
