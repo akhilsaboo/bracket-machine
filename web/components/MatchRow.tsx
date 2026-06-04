@@ -44,16 +44,28 @@ export function MatchRow({
   const onChange = (side: "home" | "away") => (e: ChangeEvent<HTMLInputElement>) =>
     setScore(fixture.id, side, clampGoals(e.target.value));
 
+  // Each tap adds a goal to that team (tally model): tap Argentina → 1-0 → 2-0,
+  // then tap the opponent → 2-1, etc. The other side defaults to 0 so the match
+  // is fully scored. Use the ↺ reset to clear a pick.
   const pickWinner = (side: "home" | "away") => () => {
-    if (locked || result_outcome === side) return;
-    setScore(fixture.id, "home", side === "home" ? 1 : 0);
-    setScore(fixture.id, "away", side === "away" ? 1 : 0);
+    if (locked) return;
+    const other = side === "home" ? "away" : "home";
+    const cur = side === "home" ? score.home : score.away;
+    const otherScore = side === "home" ? score.away : score.home;
+    setScore(fixture.id, side, Math.min(99, (cur ?? 0) + 1));
+    setScore(fixture.id, other, otherScore ?? 0);
   };
 
   const setDraw = () => {
     if (locked || result_outcome === "draw") return;
     setScore(fixture.id, "home", 0);
     setScore(fixture.id, "away", 0);
+  };
+
+  const resetPick = () => {
+    if (locked) return;
+    setScore(fixture.id, "home", null);
+    setScore(fixture.id, "away", null);
   };
 
   // Visual: graded results override the locked-red look. User's picked winner
@@ -201,6 +213,19 @@ export function MatchRow({
         <span className="text-base leading-none">{flag(fixture.away)}</span>
         <span className="truncate">{away?.name ?? fixture.away}</span>
       </button>
+      {!locked && result_outcome !== null && !grade && (
+        <button
+          type="button"
+          onClick={resetPick}
+          title="Clear this pick"
+          aria-label="Clear this pick"
+          className="shrink-0 rounded p-1 text-slate-300 transition hover:text-[var(--wc-accent)] dark:text-slate-600"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
       <MatchInsightButton homeCode={fixture.home} awayCode={fixture.away} />
     </div>
   );

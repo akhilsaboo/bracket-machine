@@ -166,7 +166,7 @@ export default function Home() {
         )}
         {effectiveTab === "group" && <GroupStageView onSubmitted={() => setTab("bracket")} />}
         {effectiveTab === "schedule" && <ScheduleView />}
-        {effectiveTab === "bracket" && <BracketView />}
+        {effectiveTab === "bracket" && <BracketView onGoToPools={() => setTab("pools")} />}
         {effectiveTab === "awards" && <PredictionsView />}
         {effectiveTab === "pools" && <PoolsView onGoToGroupTab={() => setTab("group")} />}
       </main>
