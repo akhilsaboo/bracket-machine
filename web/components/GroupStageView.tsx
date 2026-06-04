@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GROUP_IDS } from "@/lib/data";
 import { allGroupsComplete } from "@/lib/compute";
 import { usePredictions } from "@/lib/predictions";
@@ -27,6 +27,7 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
   // (only when the bracket is still empty).
   const [showTour, setShowTour] = useState(false);
   const [showAutoFill, setShowAutoFill] = useState(false);
+  const tourManual = useRef(false); // re-opened via the button (skip auto-fill chain)
 
   const offerAutoFill = () => {
     const seen = localStorage.getItem(AUTOFILL_SEEN_KEY);
@@ -45,7 +46,13 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
   const finishTour = () => {
     localStorage.setItem(TOUR_SEEN_KEY, "1");
     setShowTour(false);
-    offerAutoFill();
+    if (!tourManual.current) offerAutoFill(); // only the first-run tour chains to auto-fill
+    tourManual.current = false;
+  };
+
+  const openTutorial = () => {
+    tourManual.current = true;
+    setShowTour(true);
   };
 
   const dismissAutoFill = () => {
@@ -72,7 +79,13 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
       {showTour && <WelcomeTour onDone={finishTour} />}
       {showAutoFill && <AutoFillModal onApply={applyAutoFill} onClose={dismissAutoFill} />}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={openTutorial}
+          className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-500 transition hover:border-[var(--wc-accent)] hover:text-[var(--wc-accent)] dark:border-slate-600 dark:text-slate-400"
+        >
+          ℹ️ How to play
+        </button>
         <button
           onClick={() => setShowAutoFill(true)}
           className="rounded-full border border-[var(--wc-accent)]/40 px-3 py-1 text-xs font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/10"
