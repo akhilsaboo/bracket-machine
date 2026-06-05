@@ -9,7 +9,7 @@ export const maxDuration = 60;
 // Reminder cron: pick the milestone that's now due (and not yet sent), email
 // every signed-up user who hasn't submitted a bracket and hasn't opted out.
 // Safe by default: ?dry=1 reports without sending; nothing sends without
-// RESEND_API_KEY. Cron-gated; ?key=<d7|d3|d1|d0> forces a specific milestone.
+// RESEND_API_KEY. Cron-gated; ?key=d1 forces the milestone.
 
 function admin(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

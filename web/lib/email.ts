@@ -16,34 +16,18 @@ export interface Milestone {
   headline: string;
   body: string;
 }
+// Deliberately ONE pre-tournament reminder: a single high-intent "last day"
+// nudge the day before kickoff. A young sending domain can't afford to blast
+// non-engaged users — it burns deliverability for the emails we actually want
+// to land later (knockout-stage prompts). Re-engagement after the group stage
+// is handled separately (the second-chance bracket), not here.
 export const MILESTONES: Milestone[] = [
-  {
-    key: "d7",
-    daysBefore: 7,
-    subject: "⚽ One week to the World Cup — lock in your bracket",
-    headline: "The 2026 World Cup is one week away",
-    body: "Your bracket isn't in yet. Pick every group and build your knockout run before the games begin.",
-  },
-  {
-    key: "d3",
-    daysBefore: 3,
-    subject: "3 days left to fill your World Cup bracket",
-    headline: "Three days until kickoff",
-    body: "There's still time to make your picks and get into a pool with friends — don't get left out.",
-  },
   {
     key: "d1",
     daysBefore: 1,
-    subject: "⏳ Kickoff is tomorrow — finish your bracket",
+    subject: "⚽ Call every game while it's all still open",
     headline: "The World Cup kicks off tomorrow",
-    body: "Last full day to set your bracket. Make your picks now so you're ready when the first whistle blows.",
-  },
-  {
-    key: "d0",
-    daysBefore: 0,
-    subject: "🚨 The World Cup starts today — final hours for your bracket",
-    headline: "It's matchday — the World Cup starts today",
-    body: "Final hours to lock in your picks before the action begins. Don't miss it!",
+    body: "Make your picks before the action begins. Once the games start, they lock one at a time as each kicks off — so today's the day to get your bracket in.",
   },
 ];
 
