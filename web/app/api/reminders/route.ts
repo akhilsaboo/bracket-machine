@@ -1,6 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { TOURNAMENT_START_ISO } from "@/lib/results";
-import { MILESTONES, milestoneDate, reminderHtml, sendEmail, type Milestone } from "@/lib/email";
+import { MILESTONES, reminderHtml, sendEmail, type Milestone } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,29 +43,28 @@ export async function GET(req: Request) {
   const sb = admin();
   if (!sb) return Response.json({ error: "SUPABASE_SERVICE_ROLE_KEY not set" });
 
-  const today = new Date().toISOString().slice(0, 10);
-  const startDate = TOURNAMENT_START_ISO.slice(0, 10);
+  const now = Date.now();
+  const at = (m: Milestone) => new Date(m.sendAtISO).getTime();
 
   // Which milestones have already been sent?
   const { data: log } = await sb.from("email_reminders_log").select("milestone_key");
   const sentKeys = new Set((log ?? []).map((r) => (r as { milestone_key: string }).milestone_key));
 
-  // Choose the milestone to send.
+  // Choose the milestone to send. Gate on the exact send instant so a cron that
+  // fires a touch early/late can't send before its time; send the most recent
+  // due one and mark any older due ones as skipped (so they never re-fire).
   let chosen: Milestone | undefined;
   let skipped: Milestone[] = [];
   if (forced) {
     chosen = MILESTONES.find((m) => m.key === forced);
-  } else if (today <= startDate) {
-    // Due (date passed) and not yet sent; send the most recent, skip older ones.
-    const due = MILESTONES.filter((m) => milestoneDate(m) <= today && !sentKeys.has(m.key)).sort(
-      (a, b) => a.daysBefore - b.daysBefore,
-    );
+  } else {
+    const due = MILESTONES.filter((m) => now >= at(m) && !sentKeys.has(m.key)).sort((a, b) => at(b) - at(a));
     chosen = due[0];
     skipped = due.slice(1);
   }
 
   if (!chosen) {
-    return Response.json({ today, startDate, chosen: null, note: "no milestone due", dry });
+    return Response.json({ now: new Date(now).toISOString(), chosen: null, note: "no milestone due", dry });
   }
 
   // Hard safety gate: actually send only when explicitly enabled AND a provider

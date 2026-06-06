@@ -1,5 +1,4 @@
 import { createHmac } from "crypto";
-import { TOURNAMENT_START_ISO } from "@/lib/results";
 
 // ── Email reminders (ESPN-style): nudge signed-up users who haven't submitted a
 // bracket, as the tournament nears. Sends via Resend (https://resend.com); inert
@@ -8,10 +7,10 @@ import { TOURNAMENT_START_ISO } from "@/lib/results";
 const RESEND_URL = "https://api.resend.com/emails";
 const APP_URL = "https://bracketmachine.app";
 
-/** Reminder milestones, by calendar day before the tournament starts (Jun 11). */
+/** A reminder, fired at an exact UTC instant (not a calendar date). */
 export interface Milestone {
   key: string;
-  daysBefore: number;
+  sendAtISO: string;
   subject: string;
   headline: string;
   body: string;
@@ -24,19 +23,14 @@ export interface Milestone {
 export const MILESTONES: Milestone[] = [
   {
     key: "d1",
-    daysBefore: 1,
+    // Exactly 24h before Match 1 (MEX–RSA, Estadio Azteca, Mexico City; kickoff
+    // 2026-06-11T19:00Z). The route gates on this instant, so it never fires early.
+    sendAtISO: "2026-06-10T19:00:00Z",
     subject: "⚽ Call every game while it's all still open",
     headline: "The World Cup kicks off tomorrow",
     body: "Make your picks before the action begins. Once the games start, they lock one at a time as each kicks off — so today's the day to get your bracket in.",
   },
 ];
-
-/** UTC calendar date (YYYY-MM-DD) a milestone should first fire on. */
-export function milestoneDate(m: Milestone): string {
-  const d = new Date(TOURNAMENT_START_ISO);
-  d.setUTCDate(d.getUTCDate() - m.daysBefore);
-  return d.toISOString().slice(0, 10);
-}
 
 // ── Unsubscribe tokens (HMAC of the user id, so links can't be forged) ──
 function tokenSecret(): string {
