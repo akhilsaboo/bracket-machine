@@ -30,6 +30,10 @@ import {
 } from "@/lib/pools";
 import { getPicksSummary, type UserPicksSummary } from "@/lib/predictionPicks";
 
+// Creating brand-new custom pools is currently closed — people join existing
+// pools by invite code only. Flip to true to re-open the "Create a pool" form.
+const POOL_CREATION_OPEN = false;
+
 export function PoolsView({ onGoToGroupTab }: { onGoToGroupTab?: () => void }) {
   const { user, requestSignIn } = useAuth();
 
@@ -125,13 +129,22 @@ function PoolsAuthed({ userId, onGoToGroupTab }: { userId: string; onGoToGroupTa
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <CreatePoolForm
-          userId={userId}
-          onCreated={(id) => {
-            refresh();
-            setSelectedId(id);
-          }}
-        />
+        {POOL_CREATION_OPEN ? (
+          <CreatePoolForm
+            userId={userId}
+            onCreated={(id) => {
+              refresh();
+              setSelectedId(id);
+            }}
+          />
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">Create a pool</h3>
+            <p className="mt-3 text-sm text-slate-500">
+              New pool creation is closed for now. Have an invite code? Join a pool on the right.
+            </p>
+          </div>
+        )}
         <JoinPoolForm
           onJoined={(id) => {
             refresh();

@@ -70,9 +70,9 @@ const FAQS: QA[] = [
     q: "How do friend pools / leaderboards work?",
     a: (
       <>
-        Go to the <strong>Pools</strong> tab → <strong>Create a pool</strong> with any name. You get a short invite
-        code and a shareable link (something like <code>bracketmachine.app/?join=ABC123</code>). Send the link to
-        friends — they sign in and one click joins them. Everyone's bracket counts on the same leaderboard.
+        Go to the <strong>Pools</strong> tab and <strong>join a pool</strong> with an invite code (something like{" "}
+        <code>Z9U8XX</code>) or the shareable link (<code>bracketmachine.app/?join=Z9U8XX</code>) someone sends you —
+        you sign in and one click joins you. Everyone's bracket counts on the same leaderboard.
       </>
     ),
   },
