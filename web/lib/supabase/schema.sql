@@ -1,5 +1,22 @@
--- World Cup 2026 Bracket Machine — initial schema.
--- Paste into Supabase → SQL Editor → Run. Safe to re-run (idempotent).
+-- ============================================================================
+--  World Cup 2026 Bracket Machine — database schema (migrations).
+--  Paste into Supabase → SQL Editor → Run.
+--
+--  ✅ SAFE TO RE-RUN. This file is idempotent by design: every statement is a
+--     `create … if not exists`, an `add column if not exists`, or a drop+create
+--     of a POLICY / TRIGGER / FUNCTION (database objects, never table rows).
+--     Re-running it NEVER deletes user data.
+--
+--  🚫 NEVER add `delete`, `truncate`, `drop table`, or `drop column` to this
+--     file. It is re-run by hand and by tooling to apply migrations — a single
+--     destructive statement here wipes real user data on the very next run.
+--     (This bit us once: a pasted `delete from` reset block at the bottom wiped
+--     all pools, brackets, and prediction picks when the file was re-run.)
+--
+--  To INTENTIONALLY wipe data, use the dedicated, authenticated route instead:
+--     POST /api/admin/reset?data=1   (service-role, secret-gated)
+--  Keep destructive resets OUT of this file — permanently.
+-- ============================================================================
 
 -- 1. Profiles (one per auth user) ------------------------------------------------
 create table if not exists public.profiles (
