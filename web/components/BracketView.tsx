@@ -33,6 +33,7 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
   const [goalsInput, setGoalsInput] = useState<string>(
     tiebreakerGoals === null ? "" : String(tiebreakerGoals),
   );
+  const [tbEditOpen, setTbEditOpen] = useState(false); // edit tiebreaker after submitting
 
   const isSecondChance = activeKind === "second_chance";
   // Tournament truth + real R32: mock under preview, real ESPN feed otherwise.
@@ -101,6 +102,20 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
     setShareCopied(false);
   };
 
+  // Re-edit just the tiebreaker on an already-submitted bracket (stays submitted;
+  // the new value syncs through like any other edit). Only offered while unlocked.
+  const openTbEdit = () => {
+    setGoalsInput(tiebreakerGoals === null ? "" : String(tiebreakerGoals));
+    setTbEditOpen(true);
+  };
+  const saveTbEdit = () => {
+    const trimmed = goalsInput.trim();
+    const n = trimmed === "" ? null : parseInt(trimmed, 10);
+    if (n !== null && (Number.isNaN(n) || n < 0)) return;
+    setTiebreakerGoals(n);
+    setTbEditOpen(false);
+  };
+
   const handleShare = async () => {
     const url = "https://bracketmachine.app";
     const text = `I built my 2026 World Cup bracket on Bracket Machine 🏆 — ${champ ? `${champ.name} for the title. ` : ""}make yours:`;
@@ -127,7 +142,15 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
         bracketSubmitted && (
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
             <span>✓ Bracket submitted</span>
-            {tiebreakerGoals !== null && <span className="opacity-70">· Tiebreaker: {tiebreakerGoals} goals</span>}
+            <span className="opacity-70">
+              · Tiebreaker: {tiebreakerGoals !== null ? `${tiebreakerGoals} goals` : "not set"}
+            </span>
+            <button
+              onClick={openTbEdit}
+              className="underline decoration-dotted underline-offset-2 hover:opacity-80"
+            >
+              Edit
+            </button>
           </div>
         )
       )}
@@ -269,6 +292,45 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {tbEditOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm space-y-3 rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Edit tiebreaker</h3>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+              Total goals scored in the tournament{" "}
+              <span className="font-normal text-slate-400">(optional)</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={goalsInput}
+                onChange={(e) => setGoalsInput(e.target.value)}
+                placeholder="e.g. 168"
+                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[var(--wc-accent)] dark:border-slate-700 dark:bg-slate-800"
+              />
+            </label>
+            <p className="text-[11px] text-slate-500">
+              Your bracket stays submitted — this only updates the tiebreaker. If two brackets tie on
+              points, whoever is closer to the real total wins.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTbEditOpen(false)}
+                className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveTbEdit}
+                className="flex-1 rounded-md bg-[var(--wc-accent)] px-3 py-2 text-sm font-bold text-white transition hover:opacity-90"
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}
