@@ -85,7 +85,7 @@ export function GlobalLeaderboard() {
                 const you = !!user && r.user_id === user.id;
                 return (
                   <tr
-                    key={r.user_id}
+                    key={`${r.rank}-${r.user_id}`}
                     className={`border-t border-slate-100 dark:border-slate-800 ${
                       you ? "bg-[var(--wc-accent,#7c3aed)]/10 font-semibold" : ""
                     }`}
