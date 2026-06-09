@@ -268,11 +268,7 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
               </div>
             ) : (
               <div className="space-y-3 p-5">
-                {tiebreakerLocked ? (
-                  <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800">
-                    🔒 The tiebreaker is locked now that the tournament has kicked off.
-                  </p>
-                ) : (
+                {!tiebreakerLocked && (
                   <>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       Tiebreaker: total goals scored in the tournament{" "}
