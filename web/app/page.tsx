@@ -16,14 +16,16 @@ import { PoolsView } from "@/components/PoolsView";
 import { PoolJoinHandler } from "@/components/PoolJoinHandler";
 import { BracketSwitcher } from "@/components/BracketSwitcher";
 import { PredictionsView } from "@/components/PredictionsView";
+import { GlobalLeaderboard } from "@/components/GlobalLeaderboard";
 
-type Tab = "group" | "schedule" | "bracket" | "awards" | "pools";
+type Tab = "group" | "schedule" | "bracket" | "awards" | "pools" | "leaderboard";
 const TABS: { id: Tab; label: string }[] = [
   { id: "group", label: "Group Stage" },
   { id: "schedule", label: "Schedule" },
   { id: "bracket", label: "Bracket" },
   { id: "awards", label: "Predictions" },
   { id: "pools", label: "Pools" },
+  { id: "leaderboard", label: "Leaderboard" },
 ];
 
 export default function Home() {
@@ -169,6 +171,7 @@ export default function Home() {
         {effectiveTab === "bracket" && <BracketView onGoToPools={() => setTab("pools")} />}
         {effectiveTab === "awards" && <PredictionsView />}
         {effectiveTab === "pools" && <PoolsView onGoToGroupTab={() => setTab("group")} />}
+        {effectiveTab === "leaderboard" && <GlobalLeaderboard />}
       </main>
 
       {pendingReset && (
