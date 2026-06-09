@@ -24,15 +24,15 @@ interface Row {
   rank: number;
   user_id: string;
   display_name: string;
+  bracket_name: string;
   points: number;
   group: number;
   ko: number;
   exact: number;
-  tiebreaker: number | null;
 }
 interface Snapshot {
   rows: Row[];
-  totalPlayers: number;
+  totalEntries: number;
   hasResults: boolean;
   updatedAt: string;
 }
@@ -62,18 +62,20 @@ async function fetchTruth(origin: string): Promise<TournamentTruth | null> {
 
 interface BracketRow {
   user_id: string;
+  name: string;
   predictions: Predictions;
   knockout: KnockoutWinners;
-  tiebreaker_total_goals: number | null;
 }
 
-/** Page through every submitted, normal-kind bracket (the real entries). */
+/** Page through every submitted, normal-kind bracket (the real entries). Each
+ *  bracket is its own leaderboard entry — a user with several submitted brackets
+ *  appears multiple times (ESPN-style). */
 async function readAllEntries(sb: SupabaseClient): Promise<BracketRow[]> {
   const out: BracketRow[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await sb
       .from("brackets")
-      .select("user_id, predictions, knockout, tiebreaker_total_goals")
+      .select("user_id, name, predictions, knockout")
       .eq("kind", "normal")
       .not("submitted_at", "is", null)
       .order("user_id", { ascending: true })
@@ -112,44 +114,39 @@ async function compute(sb: SupabaseClient, origin: string): Promise<Snapshot> {
     .not("submitted_at", "is", null);
 
   if (!truth || !hasResults) {
-    return { rows: [], totalPlayers: count ?? 0, hasResults: false, updatedAt: new Date().toISOString() };
+    return { rows: [], totalEntries: count ?? 0, hasResults: false, updatedAt: new Date().toISOString() };
   }
 
   const entries = await readAllEntries(sb);
   const fixtures: Fixture[] = SCHEDULE;
   const resultFor = (f: Fixture): GroupResult | null => truth.groupResults[f.id] ?? null;
 
-  // Best bracket per user.
-  const bestByUser = new Map<string, Omit<Row, "rank" | "display_name">>();
-  for (const b of entries) {
+  // One row per bracket — multiple submitted brackets from the same user each get
+  // their own entry on the board.
+  const names = await readNames(sb, [...new Set(entries.map((e) => e.user_id))]);
+  const scored = entries.map((b) => {
     const s = scoreEverything(b.predictions, b.knockout, fixtures, resultFor, truth);
-    const cur = bestByUser.get(b.user_id);
-    const candidate = {
+    return {
       user_id: b.user_id,
+      display_name: names.get(b.user_id) ?? "Anonymous",
+      bracket_name: b.name || "Bracket",
       points: s.total,
       group: s.group.points,
       ko: s.ko.points,
       exact: s.group.exact,
-      tiebreaker: b.tiebreaker_total_goals,
     };
-    if (!cur || candidate.points > cur.points || (candidate.points === cur.points && candidate.ko > cur.ko)) {
-      bestByUser.set(b.user_id, candidate);
-    }
-  }
+  });
+  scored.sort(
+    (a, b) =>
+      b.points - a.points ||
+      b.ko - a.ko ||
+      b.exact - a.exact ||
+      a.display_name.localeCompare(b.display_name) ||
+      a.bracket_name.localeCompare(b.bracket_name),
+  );
 
-  const names = await readNames(sb, [...bestByUser.keys()]);
-  const ranked = [...bestByUser.values()]
-    .map((r) => ({ ...r, display_name: names.get(r.user_id) ?? "Anonymous" }))
-    .sort(
-      (a, b) =>
-        b.points - a.points ||
-        b.ko - a.ko ||
-        b.exact - a.exact ||
-        a.display_name.localeCompare(b.display_name),
-    );
-
-  const rows: Row[] = ranked.slice(0, TOP_N).map((r, i) => ({ rank: i + 1, ...r }));
-  return { rows, totalPlayers: bestByUser.size, hasResults: true, updatedAt: new Date().toISOString() };
+  const rows: Row[] = scored.slice(0, TOP_N).map((r, i) => ({ rank: i + 1, ...r }));
+  return { rows, totalEntries: entries.length, hasResults: true, updatedAt: new Date().toISOString() };
 }
 
 export async function GET(req: Request) {

@@ -10,6 +10,7 @@ interface Row {
   rank: number;
   user_id: string;
   display_name: string;
+  bracket_name: string;
   points: number;
   group: number;
   ko: number;
@@ -17,7 +18,7 @@ interface Row {
 }
 interface Snapshot {
   rows: Row[];
-  totalPlayers: number;
+  totalEntries: number;
   hasResults: boolean;
   updatedAt: string;
 }
@@ -49,10 +50,7 @@ export function GlobalLeaderboard() {
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">🌍 Global leaderboard</h2>
-          <p className="text-xs text-slate-500">
-            {snap.totalPlayers.toLocaleString()} {snap.totalPlayers === 1 ? "player has" : "players have"} entered
-            {snap.rows.length > 0 ? ` · top ${snap.rows.length}` : ""}
-          </p>
+          <p className="text-xs text-slate-500">Every submitted bracket, ranked against the real results.</p>
         </div>
         {snap.hasResults && (
           <span className="text-[10px] text-slate-400">
@@ -67,8 +65,7 @@ export function GlobalLeaderboard() {
             The tournament hasn’t kicked off yet.
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Rankings appear here once real results start coming in. {snap.totalPlayers.toLocaleString()} brackets are
-            locked and loaded.
+            Rankings appear here once real results start coming in.
           </p>
         </div>
       ) : (
@@ -77,7 +74,7 @@ export function GlobalLeaderboard() {
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60">
               <tr>
                 <th className="px-3 py-2 text-left">#</th>
-                <th className="px-3 py-2 text-left">Player</th>
+                <th className="px-3 py-2 text-left">Entry</th>
                 <th className="px-3 py-2 text-right">Group</th>
                 <th className="px-3 py-2 text-right">KO</th>
                 <th className="px-3 py-2 text-right">Total</th>
@@ -95,8 +92,13 @@ export function GlobalLeaderboard() {
                   >
                     <td className="px-3 py-2 tabular-nums text-slate-500">{r.rank}</td>
                     <td className="px-3 py-2">
-                      {r.display_name}
-                      {you && <span className="ml-1 text-xs text-[var(--wc-accent,#7c3aed)]">(you)</span>}
+                      <div className="flex flex-col leading-tight">
+                        <span>
+                          {r.display_name}
+                          {you && <span className="ml-1 text-xs text-[var(--wc-accent,#7c3aed)]">(you)</span>}
+                        </span>
+                        <span className="text-xs text-slate-400">{r.bracket_name}</span>
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-500">{r.group}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-500">{r.ko}</td>

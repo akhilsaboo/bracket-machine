@@ -151,7 +151,7 @@ interface Store {
 
 /** Build the initial store: migrate a legacy single bracket, else one empty bracket. */
 function initialStore(): Store {
-  const rec = newRecord("My Bracket");
+  const rec = newRecord("Bracket 1");
   return { records: { [rec.id]: rec }, order: [rec.id], activeId: rec.id };
 }
 
@@ -202,7 +202,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
           bracketSubmitted: typeof p.bracketSubmitted === "boolean" ? p.bracketSubmitted : false,
           tiebreakerGoals: typeof p.tiebreakerGoals === "number" ? p.tiebreakerGoals : null,
         };
-        const rec = newRecord("My Bracket", "normal", state);
+        const rec = newRecord("Bracket 1", "normal", state);
         setStore({ records: { [rec.id]: rec }, order: [rec.id], activeId: rec.id });
       }
     } catch {
@@ -339,7 +339,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
       if (!prev.records[id]) return prev;
       // Never drop below one bracket — replace the last one with a fresh empty.
       if (prev.order.length <= 1) {
-        const rec = newRecord("My Bracket");
+        const rec = newRecord("Bracket 1");
         return { records: { [rec.id]: rec }, order: [rec.id], activeId: rec.id };
       }
       const records = { ...prev.records };
@@ -417,7 +417,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
         reset,
         brackets,
         activeId: store.activeId,
-        activeName: active?.name ?? "My Bracket",
+        activeName: active?.name ?? "Bracket 1",
         activeKind: active?.kind ?? "normal",
         switchBracket,
         createBracket,

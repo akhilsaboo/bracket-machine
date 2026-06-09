@@ -39,7 +39,7 @@ export function rowToRecord(row: BracketRow): BracketRecord {
   };
   return {
     id: row.id,
-    name: row.name || "My Bracket",
+    name: row.name || "Bracket 1",
     kind: (row.kind as BracketKind) ?? "normal",
     createdAt: new Date().toISOString(),
     state,
