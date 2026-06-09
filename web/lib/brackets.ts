@@ -18,10 +18,11 @@ export interface BracketRow {
   awards: AwardPicks;
   submitted_at: string | null;
   tiebreaker_total_goals: number | null;
+  fill_mode: string | null;
 }
 
 const SELECT =
-  "id, user_id, name, kind, predictions, knockout, awards, submitted_at, tiebreaker_total_goals";
+  "id, user_id, name, kind, predictions, knockout, awards, submitted_at, tiebreaker_total_goals, fill_mode";
 
 /** Map a Supabase row into a client BracketRecord. */
 export function rowToRecord(row: BracketRow): BracketRecord {
@@ -34,6 +35,7 @@ export function rowToRecord(row: BracketRow): BracketRecord {
     groupSubmitted: submitted,
     bracketSubmitted: submitted,
     tiebreakerGoals: row.tiebreaker_total_goals,
+    fillMode: row.fill_mode ?? null,
   };
   return {
     id: row.id,
@@ -79,6 +81,7 @@ export async function upsertBracket(
       awards: record.state.awards,
       submitted_at: record.state.bracketSubmitted ? new Date().toISOString() : null,
       tiebreaker_total_goals: record.state.tiebreakerGoals,
+      fill_mode: record.state.fillMode,
     },
     { onConflict: "id" },
   );

@@ -28,6 +28,9 @@ export interface BracketState {
   groupSubmitted: boolean;
   bracketSubmitted: boolean;
   tiebreakerGoals: number | null;
+  /** Which auto-fill persona last generated this bracket (null = built by hand).
+   *  Recorded for owner analytics; an auto-fill mode id from lib/autofill. */
+  fillMode: string | null;
 }
 
 export type BracketKind = "normal" | "second_chance";
@@ -72,6 +75,8 @@ interface PredictionContextValue {
   setGroupSubmitted: (v: boolean) => void;
   setBracketSubmitted: (v: boolean) => void;
   setTiebreakerGoals: (v: number | null) => void;
+  /** Record which auto-fill persona generated the active bracket (for analytics). */
+  setFillMode: (mode: string | null) => void;
   /** Replace the active bracket's whole state (used when loading from the account). */
   replaceAll: (state: BracketState) => void;
   /** Clear the active bracket. */
@@ -118,6 +123,7 @@ const emptyState = (): BracketState => ({
   groupSubmitted: false,
   bracketSubmitted: false,
   tiebreakerGoals: null,
+  fillMode: null,
 });
 
 const cloneState = (s: BracketState): BracketState => ({
@@ -127,6 +133,7 @@ const cloneState = (s: BracketState): BracketState => ({
   groupSubmitted: s.groupSubmitted,
   bracketSubmitted: s.bracketSubmitted,
   tiebreakerGoals: s.tiebreakerGoals,
+  fillMode: s.fillMode,
 });
 
 const predictedCount = (s: BracketState): number =>
@@ -289,6 +296,10 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
     (v: number | null) => mutateActive((s) => ({ ...s, tiebreakerGoals: v })),
     [mutateActive],
   );
+  const setFillMode = useCallback(
+    (mode: string | null) => mutateActive((s) => ({ ...s, fillMode: mode })),
+    [mutateActive],
+  );
   const replaceAll = useCallback((state: BracketState) => mutateActive(() => state), [mutateActive]);
   const reset = useCallback(() => mutateActive(() => emptyState()), [mutateActive]);
 
@@ -401,6 +412,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
         setGroupSubmitted,
         setBracketSubmitted,
         setTiebreakerGoals,
+        setFillMode,
         replaceAll,
         reset,
         brackets,
