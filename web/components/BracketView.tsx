@@ -8,7 +8,7 @@ import { champion, resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/
 import { flag } from "@/lib/flags";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
-import { isKnockoutStarted } from "@/lib/results";
+import { isKnockoutStarted, tournamentHasStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
 import { knockoutGrader } from "@/lib/scoring";
 import { BracketTree } from "./BracketTree";
@@ -85,6 +85,9 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
   // preview-aware clock, so "Preview mid-tournament" shows the locked state.
   const locked = !isSecondChance && isKnockoutStarted(now);
   const canSubmit = !!champ && !bracketSubmitted && !locked;
+  // The total-goals tiebreaker freezes at first kickoff — after that, goals start
+  // accumulating, so editing/setting it would be an unfair advantage.
+  const tiebreakerLocked = tournamentHasStarted(now);
 
   const confirmSubmit = () => {
     // The tiebreaker is optional — submit with null when left blank.
@@ -109,6 +112,10 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
     setTbEditOpen(true);
   };
   const saveTbEdit = () => {
+    if (tiebreakerLocked) {
+      setTbEditOpen(false);
+      return;
+    }
     const trimmed = goalsInput.trim();
     const n = trimmed === "" ? null : parseInt(trimmed, 10);
     if (n !== null && (Number.isNaN(n) || n < 0)) return;
@@ -145,12 +152,14 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
             <span className="opacity-70">
               · Tiebreaker: {tiebreakerGoals !== null ? `${tiebreakerGoals} goals` : "not set"}
             </span>
-            <button
-              onClick={openTbEdit}
-              className="underline decoration-dotted underline-offset-2 hover:opacity-80"
-            >
-              Edit
-            </button>
+            {!tiebreakerLocked && (
+              <button
+                onClick={openTbEdit}
+                className="underline decoration-dotted underline-offset-2 hover:opacity-80"
+              >
+                Edit
+              </button>
+            )}
           </div>
         )
       )}
@@ -259,23 +268,31 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
               </div>
             ) : (
               <div className="space-y-3 p-5">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                  Tiebreaker: total goals scored in the tournament{" "}
-                  <span className="font-normal text-slate-400">(optional)</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    value={goalsInput}
-                    onChange={(e) => setGoalsInput(e.target.value)}
-                    placeholder="e.g. 168"
-                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[var(--wc-accent)] dark:border-slate-700 dark:bg-slate-800"
-                  />
-                </label>
-                <p className="text-[11px] text-slate-500">
-                  Optional — if two brackets tie on points, whoever is closer to the real total wins.
-                  Skip it and you'll just lose ties to someone who guessed.
-                </p>
+                {tiebreakerLocked ? (
+                  <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800">
+                    🔒 The tiebreaker is locked now that the tournament has kicked off.
+                  </p>
+                ) : (
+                  <>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                      Tiebreaker: total goals scored in the tournament{" "}
+                      <span className="font-normal text-slate-400">(optional)</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={goalsInput}
+                        onChange={(e) => setGoalsInput(e.target.value)}
+                        placeholder="e.g. 168"
+                        className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[var(--wc-accent)] dark:border-slate-700 dark:bg-slate-800"
+                      />
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Optional — if two brackets tie on points, whoever is closer to the real total wins.
+                      Skip it and you'll just lose ties to someone who guessed.
+                    </p>
+                  </>
+                )}
                 <div className="flex gap-2">
                   <button
                     onClick={() => setModalOpen(false)}
