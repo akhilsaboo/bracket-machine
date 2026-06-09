@@ -30,9 +30,9 @@ import {
 } from "@/lib/pools";
 import { getPicksSummary, type UserPicksSummary } from "@/lib/predictionPicks";
 
-// Creating brand-new custom pools is currently closed — people join existing
-// pools by invite code only. Flip to true to re-open the "Create a pool" form.
-const POOL_CREATION_OPEN = false;
+// Whether the "Create a pool" form is available. When false, people can only join
+// existing pools by invite code. Open = anyone can create their own pool.
+const POOL_CREATION_OPEN = true;
 
 export function PoolsView({ onGoToGroupTab }: { onGoToGroupTab?: () => void }) {
   const { user, requestSignIn } = useAuth();
