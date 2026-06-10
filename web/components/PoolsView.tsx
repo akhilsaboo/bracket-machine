@@ -13,6 +13,7 @@ import { upsertBracket } from "@/lib/brackets";
 import { champion, resolveKnockout, resolveKnockoutFrom } from "@/lib/knockout";
 import { flag } from "@/lib/flags";
 import { MemberBracketView } from "./MemberBracketView";
+import { DisplayNamePrompt } from "./DisplayNamePrompt";
 import {
   createPool,
   deletePool,
@@ -103,6 +104,7 @@ function PoolsAuthed({ userId, onGoToGroupTab }: { userId: string; onGoToGroupTa
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      <DisplayNamePrompt />
       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">My pools</h2>
         {loading ? (

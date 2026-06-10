@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { useAuth } from "@/lib/auth";
+import { useProfile, MAX_NAME_LEN } from "@/lib/profile";
 
 function GoogleG({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -43,6 +44,10 @@ function Avatar({ name, url, size = 24 }: { name: string; url: string | null; si
 
 export function AuthControls() {
   const { user, ready, signInPromptCount, signOut } = useAuth();
+  const { displayName, updateDisplayName } = useProfile();
+  const [nameInput, setNameInput] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
@@ -65,11 +70,26 @@ export function AuthControls() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  // Keep the name input synced with the current name while the menu is open.
+  useEffect(() => {
+    if (open) setNameInput(displayName === "You" ? "" : displayName);
+  }, [open, displayName]);
+
   if (!isSupabaseConfigured() || !ready) return null;
 
   const handleSignOut = async () => {
     setOpen(false);
     await signOut();
+  };
+
+  const saveName = async () => {
+    setSavingName(true);
+    const err = await updateDisplayName(nameInput);
+    setSavingName(false);
+    if (!err) {
+      setNameSaved(true);
+      setTimeout(() => setNameSaved(false), 1500);
+    }
   };
 
   const signInGoogle = async () => {
@@ -111,8 +131,7 @@ export function AuthControls() {
 
   // --- Signed in: avatar pill + dropdown ---
   if (user) {
-    const name =
-      ((user.user_metadata?.full_name as string | undefined) ?? user.email?.split("@")[0] ?? "You");
+    const name = displayName;
     const avatarUrl = (user.user_metadata?.avatar_url as string | undefined) ?? null;
 
     return (
@@ -136,6 +155,31 @@ export function AuthControls() {
                 <div className="truncate text-sm font-semibold">{name}</div>
                 <div className="truncate text-xs text-slate-500 dark:text-slate-400">{user.email}</div>
               </div>
+            </div>
+
+            <div className="border-t border-slate-200 px-4 py-3 dark:border-slate-700">
+              <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Display name
+              </label>
+              <div className="mt-1 flex gap-1.5">
+                <input
+                  value={nameInput}
+                  maxLength={MAX_NAME_LEN}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveName();
+                  }}
+                  className="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-[var(--wc-accent)] dark:border-slate-700 dark:bg-slate-800"
+                />
+                <button
+                  onClick={saveName}
+                  disabled={savingName || !nameInput.trim() || nameInput.trim() === name}
+                  className="rounded-md bg-[var(--wc-accent)] px-3 py-1.5 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingName ? "…" : nameSaved ? "✓" : "Save"}
+                </button>
+              </div>
+              <p className="mt-1 text-[10px] text-slate-400">Shown on pool &amp; global leaderboards.</p>
             </div>
 
             <div className="border-t border-slate-200 dark:border-slate-700">

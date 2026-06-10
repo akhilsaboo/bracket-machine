@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PredictionProvider } from "@/lib/predictions";
 import { AuthProvider } from "@/lib/auth";
+import { ProfileProvider } from "@/lib/profile";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,7 +42,9 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <AuthProvider>
-          <PredictionProvider>{children}</PredictionProvider>
+          <ProfileProvider>
+            <PredictionProvider>{children}</PredictionProvider>
+          </ProfileProvider>
         </AuthProvider>
         <footer className="border-t border-slate-200 px-4 py-4 text-center text-[11px] text-slate-400 dark:border-slate-800">
           <a href="/faq" className="hover:text-[var(--wc-accent)]">FAQ</a>
