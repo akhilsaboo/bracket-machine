@@ -19,7 +19,7 @@ const AUTOFILL_SEEN_KEY = "wc2026-autofill-seen";
 const TOUR_SEEN_KEY = "wc2026-tour-seen";
 
 export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
-  const { predictions, setManyScores, setManyKnockout, setBracketSubmitted, setFillMode, hydrated } = usePredictions();
+  const { predictions, setManyScores, setManyKnockout, bracketSubmitted, setBracketSubmitted, setFillMode, hydrated } = usePredictions();
   const { user, requestSignIn } = useAuth();
   const complete = allGroupsComplete(predictions);
 
@@ -107,7 +107,7 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
             onClick={() => onSubmitted?.()}
             className="rounded-full bg-[var(--wc-accent)] px-6 py-3 text-base font-bold text-white shadow-lg ring-4 ring-[var(--wc-accent)]/20 transition hover:opacity-90"
           >
-            See your bracket →
+            {bracketSubmitted ? "Update your bracket →" : "See your bracket →"}
           </button>
           {!user && (
             <button
