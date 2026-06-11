@@ -19,6 +19,19 @@ if (dsn) {
     replaysOnErrorSampleRate: 1.0, // record 100% of sessions that hit an error
     sendDefaultPii: true,
     enabled: process.env.NODE_ENV === "production",
+    // Drop noise that isn't our app: scripts the browser itself injects (Brave/
+    // Firefox-iOS inject content scripts under window.__firefox__ that throw before
+    // their global is ready), plus a few universally non-actionable errors.
+    ignoreErrors: [
+      /__firefox__/,
+      "Can't find variable: __firefox__",
+      /refresh_youtube_quality/,
+      "ResizeObserver loop limit exceeded",
+      "ResizeObserver loop completed with undelivered notifications",
+      /^Non-Error promise rejection captured/,
+    ],
+    // Errors thrown from browser-extension / injected contexts.
+    denyUrls: [/^chrome-extension:\/\//, /^moz-extension:\/\//, /^safari-(web-)?extension:\/\//],
   });
 }
 
