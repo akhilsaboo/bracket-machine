@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SCHEDULE } from "@/lib/data";
+import { pickProgress } from "@/lib/compute";
 import { usePredictions } from "@/lib/predictions";
 import { useTournament } from "@/lib/liveResults";
 
@@ -50,10 +50,9 @@ export default function Home() {
     setPendingReset(false);
   };
 
-  const predicted = SCHEDULE.filter((f) => {
-    const s = predictions[f.id];
-    return s && s.home !== null && s.away !== null;
-  }).length;
+  // Picks made vs. picks still available — already-played matches a late joiner
+  // couldn't pick are excluded, so this reads e.g. "70/70" instead of a stuck 70/72.
+  const [picksMade, picksTotal] = pickProgress(predictions, now);
 
   const isSecondChance = activeKind === "second_chance";
   // Group tab is irrelevant for a knockout-only second-chance bracket.
@@ -106,7 +105,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="rounded-full bg-white/15 px-3 py-1 font-medium tabular-nums">
-              {hydrated ? `${predicted}/72 predicted` : "…"}
+              {hydrated ? `${picksMade}/${picksTotal} picks` : "…"}
             </span>
             <BracketSwitcher />
             <button

@@ -1,6 +1,7 @@
 "use client";
 
 import { resolveKnockout } from "@/lib/knockout";
+import { withResults } from "@/lib/compute";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 import type { TournamentTruth } from "@/lib/results";
 import { knockoutGrader } from "@/lib/scoring";
@@ -21,7 +22,9 @@ export function MemberBracketView({
   tiebreakerGoals: number | null;
   onBack: () => void;
 }) {
-  const resolved = resolveKnockout(predictions, knockout);
+  // Resolve from effective predictions so a late joiner's bracket (real results
+  // fill matches they couldn't pick) still displays for pool-mates.
+  const resolved = resolveKnockout(withResults(predictions, truth?.groupResults ?? {}), knockout);
 
   if (!resolved) {
     return (

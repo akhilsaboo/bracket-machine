@@ -1,7 +1,7 @@
 // Score a bracket against the current set of match results.
 import type { Fixture } from "@/lib/data";
 import { resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/lib/knockout";
-import type { ResolvedFixture } from "@/lib/compute";
+import { withResults, type ResolvedFixture } from "@/lib/compute";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 import { gradeGroup, type GroupResult, type TournamentTruth } from "@/lib/results";
 
@@ -212,7 +212,13 @@ export function scoreEverything(
   resultFor: (f: Fixture) => GroupResult | null,
   truth: TournamentTruth | null,
 ): FullScore {
+  // Group points: grade ONLY the user's own picks (no free points for games they
+  // never predicted). Knockout: resolve the bracket from effective predictions
+  // (real results fill matches a late joiner couldn't pick) so their KO picks
+  // still resolve and score. For a full-bracket user, effective === their picks.
   const group = scoreBracket(predictions, fixtures, resultFor);
-  const ko = truth ? scoreKnockout(predictions, knockout, truth) : ZERO_KO;
+  const ko = truth
+    ? scoreKnockout(withResults(predictions, truth.groupResults), knockout, truth)
+    : ZERO_KO;
   return { group, ko, total: group.points + ko.points };
 }

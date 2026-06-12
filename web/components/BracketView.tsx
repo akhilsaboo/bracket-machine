@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { gd, points } from "@/lib/engine";
 import { GROUP_IDS } from "@/lib/data";
-import { allGroupsComplete, groupIsComplete, thirdPlaceRanking } from "@/lib/compute";
+import { allGroupsComplete, groupIsComplete, thirdPlaceRanking, withResults } from "@/lib/compute";
 import { champion, resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/lib/knockout";
 import { flag } from "@/lib/flags";
 import { usePredictions } from "@/lib/predictions";
@@ -38,6 +38,9 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
   const isSecondChance = activeKind === "second_chance";
   // Tournament truth + real R32: mock under preview, real ESPN feed otherwise.
   const { truth, round32: realR32 } = useTournament(now, isPreview);
+  // Already-played matches the user couldn't pick resolve from real results, so a
+  // late joiner only needs to predict what's still playable. (Their own picks win.)
+  const effective = withResults(predictions, truth?.groupResults ?? {});
 
   let resolved: Map<number, KOMatch>;
   if (isSecondChance) {
@@ -57,18 +60,18 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
     }
     resolved = resolveKnockoutFrom(r32, knockout);
   } else {
-    if (!allGroupsComplete(predictions)) {
-      const done = GROUP_IDS.filter((g) => groupIsComplete(g, predictions)).length;
+    if (!allGroupsComplete(effective)) {
+      const done = GROUP_IDS.filter((g) => groupIsComplete(g, effective)).length;
       return (
         <div className="mx-auto max-w-md rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
           <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            Predict all 12 groups to generate your bracket.
+            Finish your group picks to generate your bracket.
           </p>
           <p className="mt-1 text-xs text-slate-400">{done}/12 groups complete</p>
         </div>
       );
     }
-    resolved = resolveKnockout(predictions, knockout)!;
+    resolved = resolveKnockout(effective, knockout)!;
   }
 
   const onPick = (match: number, code: string) => setKnockoutWinner(match, code);
@@ -78,7 +81,7 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
   const gradePick = truth ? knockoutGrader(truth) : undefined;
 
   const champ = champion(resolved);
-  const thirds = isSecondChance ? [] : thirdPlaceRanking(predictions);
+  const thirds = isSecondChance ? [] : thirdPlaceRanking(effective);
   // A normal bracket locks once the knockout stage begins — by then the group
   // stage is over and your predictions are final. (Second-chance brackets are
   // meant to be filled during the knockouts, so they stay editable.) Uses the

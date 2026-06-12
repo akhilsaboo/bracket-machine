@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GROUP_IDS } from "@/lib/data";
-import { allGroupsComplete } from "@/lib/compute";
+import { allGroupsComplete, withResults } from "@/lib/compute";
 import { usePredictions } from "@/lib/predictions";
+import { useTournament } from "@/lib/liveResults";
 import { useAuth } from "@/lib/auth";
 import {
   buildGroupPredictions,
@@ -19,9 +20,12 @@ const AUTOFILL_SEEN_KEY = "wc2026-autofill-seen";
 const TOUR_SEEN_KEY = "wc2026-tour-seen";
 
 export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
-  const { predictions, setManyScores, setManyKnockout, bracketSubmitted, setBracketSubmitted, setFillMode, hydrated } = usePredictions();
+  const { predictions, setManyScores, setManyKnockout, bracketSubmitted, setBracketSubmitted, setFillMode, hydrated, now, isPreview } = usePredictions();
   const { user, requestSignIn } = useAuth();
-  const complete = allGroupsComplete(predictions);
+  const { truth } = useTournament(now, isPreview);
+  // Count already-played matches (resolved from real results) as done, so a late
+  // joiner who only has the still-playable games left can still finish.
+  const complete = allGroupsComplete(withResults(predictions, truth?.groupResults ?? {}));
 
   // First load: show the welcome tour once, then chain into the auto-fill nudge
   // (only when the bracket is still empty).
