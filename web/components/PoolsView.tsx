@@ -287,6 +287,11 @@ function PoolDetail({
   const myMember = members.find((m) => m.user_id === currentUserId);
   const myEntryId = myMember?.bracket_id ?? null;
   const myScId = myMember?.sc_bracket_id ?? null;
+  // You can swap your pool entry for 30 min after joining (to fix an accidental
+  // wrong pick); after that the entry is locked in.
+  const ENTRY_CHANGE_WINDOW_MS = 30 * 60 * 1000;
+  const joinedAtMs = myMember?.joined_at ? new Date(myMember.joined_at).getTime() : 0;
+  const entryWindowOpen = joinedAtMs > 0 && now.getTime() - joinedAtMs < ENTRY_CHANGE_WINDOW_MS;
   // Second-chance entries can be set during the group→knockout window and lock at
   // knockout kickoff. Real-world deadline (real time) so it's still settable while
   // previewing — you fill an SC bracket from the real R32 once the groups finish.
@@ -381,10 +386,10 @@ function PoolDetail({
   };
 
   // Brand-new (or just-joined) members have no entry yet — prompt to pick one,
-  // unless entries are already locked.
+  // while their 30-min entry-change window is still open.
   useEffect(() => {
-    if (!loading && !myEntryId && !locked) setChooserOpen(true);
-  }, [loading, myEntryId, locked]);
+    if (!loading && !myEntryId && !locked && entryWindowOpen) setChooserOpen(true);
+  }, [loading, myEntryId, locked, entryWindowOpen]);
 
   // Build the leaderboard: score each member's bracket against the same truth.
   const leaderboard: LeaderboardRow[] = useMemo(() => {
@@ -600,14 +605,18 @@ function PoolDetail({
           ) : (
             <span className="text-sm text-slate-400">No entry yet</span>
           )}
-          {!locked && (
+          {!locked && entryWindowOpen ? (
             <button
               onClick={() => setChooserOpen(true)}
               className="rounded-md border border-[var(--wc-accent)]/40 px-3 py-1.5 text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/10"
             >
               {myEntry ? "Change" : "Choose entry"}
             </button>
-          )}
+          ) : !locked && myEntry ? (
+            <span className="text-[11px] text-slate-400" title="Entries lock 30 minutes after you join">
+              🔒 Entry locked
+            </span>
+          ) : null}
         </div>
         {entryError && <p className="w-full text-xs text-red-600">{entryError}</p>}
       </div>

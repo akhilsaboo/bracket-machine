@@ -5,6 +5,7 @@ import { usePredictions, MAX_BRACKETS, type BracketRecord } from "@/lib/predicti
 import { useAuth } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { deleteBracketRow, upsertBracket } from "@/lib/brackets";
+import { addTombstone } from "@/lib/tombstones";
 import { isKnockoutStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
 
@@ -69,18 +70,17 @@ export function BracketSwitcher() {
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Server-first when signed in: if the server delete fails (e.g. RLS), keep the
-  // bracket so it doesn't silently reappear on the next sync — and show why.
+  // Tombstone FIRST so the sign-in sync can never resurrect a deleted bracket,
+  // even if the server delete races or fails — it gets re-attempted and skipped on
+  // the next sync (see BracketSync). Then remove locally and delete on the server.
   const doDelete = async (id: string) => {
-    if (sb && user) {
-      const ok = await deleteBracketRow(sb, id);
-      if (!ok) {
-        setDeleteError("Couldn't delete on the server (re-run schema.sql in Supabase?). Bracket kept.");
-        return;
-      }
-    }
+    addTombstone(id);
     setDeleteError(null);
     deleteBracket(id);
+    if (sb && user) {
+      const ok = await deleteBracketRow(sb, id);
+      if (!ok) setDeleteError("Server unreachable — this bracket will finish deleting on the next sync.");
+    }
   };
   const handleDelete = (id: string, name: string) => {
     if (typeof window !== "undefined" && localStorage.getItem(SKIP_DELETE_CONFIRM_KEY) === "1") {

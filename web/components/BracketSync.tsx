@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { loadUserBrackets, upsertBracket } from "@/lib/brackets";
+import { deleteBracketRow, loadUserBrackets, upsertBracket } from "@/lib/brackets";
+import { getTombstones } from "@/lib/tombstones";
 import { usePredictions } from "@/lib/predictions";
 
 /**
@@ -46,11 +47,20 @@ export function BracketSync() {
       loadingRef.current = true;
       const serverRecs = await loadUserBrackets(sb, userId);
       if (cancelled) return;
+      // Never resurrect a bracket the user deleted: re-attempt the server delete for
+      // any tombstoned bracket still present, and exclude tombstoned ones from the
+      // import + the local-only re-push. (Tombstones are forward-only — empty for
+      // anyone who hadn't deleted under the new code, so the past is left untouched.)
+      const tombstones = getTombstones();
+      for (const r of serverRecs) {
+        if (tombstones.has(r.id)) void deleteBracketRow(sb, r.id);
+      }
+      const liveServerRecs = serverRecs.filter((r) => !tombstones.has(r.id));
       const localRecs = allRecords();
       const serverIds = new Set(serverRecs.map((r) => r.id));
-      if (serverRecs.length > 0) importServerBrackets(serverRecs);
+      if (liveServerRecs.length > 0) importServerBrackets(liveServerRecs);
 
-      const localOnly = localRecs.filter((r) => !serverIds.has(r.id));
+      const localOnly = localRecs.filter((r) => !serverIds.has(r.id) && !tombstones.has(r.id));
       for (const r of localOnly) {
         const hasData =
           Object.keys(r.state.predictions).length > 0 || Object.keys(r.state.knockout).length > 0;
