@@ -287,11 +287,13 @@ function PoolDetail({
   const myMember = members.find((m) => m.user_id === currentUserId);
   const myEntryId = myMember?.bracket_id ?? null;
   const myScId = myMember?.sc_bracket_id ?? null;
-  // You can swap your pool entry for 30 min after joining (to fix an accidental
-  // wrong pick); after that the entry is locked in.
+  // You can always make a FIRST entry pick (so nobody is ever stuck on the default).
+  // Once you've picked one, you can still SWAP it for 30 min after joining — enough
+  // to fix an accidental wrong pick — then the entry locks in.
   const ENTRY_CHANGE_WINDOW_MS = 30 * 60 * 1000;
   const joinedAtMs = myMember?.joined_at ? new Date(myMember.joined_at).getTime() : 0;
-  const entryWindowOpen = joinedAtMs > 0 && now.getTime() - joinedAtMs < ENTRY_CHANGE_WINDOW_MS;
+  const entryWindowOpen =
+    !myEntryId || (joinedAtMs > 0 && now.getTime() - joinedAtMs < ENTRY_CHANGE_WINDOW_MS);
   // Second-chance entries can be set during the group→knockout window and lock at
   // knockout kickoff. Real-world deadline (real time) so it's still settable while
   // previewing — you fill an SC bracket from the real R32 once the groups finish.
