@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GROUP_IDS } from "@/lib/data";
+import { GROUP_IDS, SCHEDULE } from "@/lib/data";
 import { allGroupsComplete, withResults } from "@/lib/compute";
-import { usePredictions } from "@/lib/predictions";
+import { isLocked } from "@/lib/schedule";
+import { usePredictions, type Predictions } from "@/lib/predictions";
 import { useTournament } from "@/lib/liveResults";
 import { useAuth } from "@/lib/auth";
 import {
@@ -66,10 +67,19 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
 
   const applyAutoFill = (mode: FillModeId, opts: FillOptions) => {
     const groupScores = buildGroupPredictions(mode, opts);
-    setManyScores(groupScores);
-    // Knockout winners resolve from the just-filled standings, so merge the new
-    // scores in before walking the bracket.
-    setManyKnockout(buildKnockoutWinners(mode, { ...predictions, ...groupScores }, opts));
+    // Never autofill a match that has already kicked off — you can't predict a game
+    // that's started. Those resolve from real results instead (so no bogus "exact"
+    // star on a game the persona happened to match). Same rule manual editing uses.
+    const pickable: Predictions = {};
+    for (const [id, score] of Object.entries(groupScores)) {
+      const f = SCHEDULE.find((x) => x.id === id);
+      if (f && !isLocked(f, now)) pickable[id] = score;
+    }
+    setManyScores(pickable);
+    // Resolve the knockout from EFFECTIVE predictions (the autofilled picks + real
+    // results for already-played matches) so the standings/bracket are correct.
+    const effective = withResults({ ...predictions, ...pickable }, truth?.groupResults ?? {});
+    setManyKnockout(buildKnockoutWinners(mode, effective, opts));
     // Record which persona generated this bracket (owner analytics).
     setFillMode(mode);
     // A whole new autofill rewrites the bracket, so it reverts to a DRAFT — the
