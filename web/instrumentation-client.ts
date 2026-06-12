@@ -23,9 +23,17 @@ if (dsn) {
     // Firefox-iOS inject content scripts under window.__firefox__ that throw before
     // their global is ready), plus a few universally non-actionable errors.
     ignoreErrors: [
+      // Brave / Firefox-iOS injected content scripts (window.__firefox__).
       /__firefox__/,
       "Can't find variable: __firefox__",
       /refresh_youtube_quality/,
+      // Crypto-wallet extensions (MetaMask, Coinbase, Brave Wallet) inject
+      // window.ethereum / web3 / solana and throw setting up their provider.
+      /ethereum/i,
+      /web3/i,
+      /solana/i,
+      "Cannot redefine property: ethereum",
+      // Universally non-actionable noise.
       "ResizeObserver loop limit exceeded",
       "ResizeObserver loop completed with undelivered notifications",
       /^Non-Error promise rejection captured/,
