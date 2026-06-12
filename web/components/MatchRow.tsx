@@ -43,6 +43,9 @@ export function MatchRow({
   // their own (e.g. they joined after kickoff), display the live score read-only.
   const isLive = !!liveResult && !result;
   const showLive = isLive && score.home === null;
+  // Missed a finished game (no pick of their own) → show the real final score in
+  // the boxes so it's clear it's factored into the bracket.
+  const showResult = !!result && score.home === null;
   const home = team(fixture.home);
   const away = team(fixture.away);
   const result_outcome = outcome(score.home, score.away);
@@ -163,8 +166,14 @@ export function MatchRow({
       Live
     </div>
   );
+  // "Final" pill for a finished match the user didn't pick (shows the real score).
+  const finalPill = (
+    <div className="flex h-7 shrink-0 items-center rounded-full bg-slate-400/30 px-2 text-[9px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-300">
+      FT
+    </div>
+  );
 
-  // Container tint follows the grade when present, else live, else the locked look.
+  // Container tint follows the grade when present, else live/final, else locked.
   const containerTint = grade
     ? grade === "exact"
       ? "bg-emerald-500/5"
@@ -173,9 +182,11 @@ export function MatchRow({
         : "bg-red-500/[0.08]"
     : isLive
       ? "bg-red-500/[0.05]"
-      : locked
-        ? "bg-red-500/[0.06] opacity-80"
-        : "";
+      : showResult
+        ? "bg-slate-400/[0.07]"
+        : locked
+          ? "bg-red-500/[0.06] opacity-80"
+          : "";
 
   return (
     <div className={`flex items-center gap-1.5 rounded-md px-1 py-1.5 ${containerTint}`}>
@@ -197,12 +208,14 @@ export function MatchRow({
         aria-label={`${home?.name} goals`}
         inputMode="numeric"
         disabled={locked}
-        value={(showLive ? liveResult!.homeGoals : score.home) ?? ""}
+        value={(showResult ? result!.homeGoals : showLive ? liveResult!.homeGoals : score.home) ?? ""}
         onChange={onChange("home")}
         className={inputCls}
       />
       {isLive
         ? livePill
+        : showResult
+        ? finalPill
         : (gradeBadge ?? (
             <button
               type="button"
@@ -219,7 +232,7 @@ export function MatchRow({
         aria-label={`${away?.name} goals`}
         inputMode="numeric"
         disabled={locked}
-        value={(showLive ? liveResult!.awayGoals : score.away) ?? ""}
+        value={(showResult ? result!.awayGoals : showLive ? liveResult!.awayGoals : score.away) ?? ""}
         onChange={onChange("away")}
         className={inputCls}
       />
