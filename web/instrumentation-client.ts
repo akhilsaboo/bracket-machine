@@ -40,6 +40,7 @@ if (dsn) {
       /sessionStorage/,
       "Access is denied for this document",
       "The request was denied",
+      "The operation is insecure",
       // Universally non-actionable noise.
       "ResizeObserver loop limit exceeded",
       "ResizeObserver loop completed with undelivered notifications",
@@ -47,6 +48,16 @@ if (dsn) {
     ],
     // Errors thrown from browser-extension / injected contexts.
     denyUrls: [/^chrome-extension:\/\//, /^moz-extension:\/\//, /^safari-(web-)?extension:\/\//],
+    // Type-based catch-all for environmental storage/security DOMExceptions —
+    // Safari Private Browsing ("The operation is insecure"), blocked storage in
+    // in-app webviews ("Access is denied"), quota limits. These aren't app bugs
+    // (the app degrades to guest mode) and can't be fixed in code. Matching by
+    // error NAME catches every browser's wording, present and future.
+    beforeSend(event, hint) {
+      const name = (hint?.originalException as { name?: string } | undefined)?.name;
+      if (name === "SecurityError" || name === "QuotaExceededError") return null;
+      return event;
+    },
   });
 }
 
