@@ -67,9 +67,9 @@ interface BracketRow {
   knockout: KnockoutWinners;
 }
 
-/** Page through every submitted, normal-kind bracket (the real entries). Each
- *  bracket is its own leaderboard entry — a user with several submitted brackets
- *  appears multiple times (ESPN-style). */
+/** Page through every normal-kind bracket. Each bracket is its own leaderboard
+ *  entry — a user with several brackets appears multiple times (ESPN-style).
+ *  Includes unsubmitted "predict as you go" brackets; empty ones score 0. */
 async function readAllEntries(sb: SupabaseClient): Promise<BracketRow[]> {
   const out: BracketRow[] = [];
   for (let from = 0; ; from += PAGE) {
@@ -77,7 +77,8 @@ async function readAllEntries(sb: SupabaseClient): Promise<BracketRow[]> {
       .from("brackets")
       .select("user_id, name, predictions, knockout")
       .eq("kind", "normal")
-      .not("submitted_at", "is", null)
+      // Every normal bracket is an entry — incl. unsubmitted "predict as you go"
+      // brackets people compete with in pools. Empty drafts score 0 → never top-N.
       .order("user_id", { ascending: true })
       .range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
@@ -110,8 +111,7 @@ async function compute(sb: SupabaseClient, origin: string): Promise<Snapshot> {
   const { count } = await sb
     .from("brackets")
     .select("user_id", { count: "exact", head: true })
-    .eq("kind", "normal")
-    .not("submitted_at", "is", null);
+    .eq("kind", "normal");
 
   if (!truth || !hasResults) {
     return { rows: [], totalEntries: count ?? 0, hasResults: false, updatedAt: new Date().toISOString() };
