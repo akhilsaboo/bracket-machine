@@ -33,6 +33,13 @@ if (dsn) {
       /web3/i,
       /solana/i,
       "Cannot redefine property: ethereum",
+      // Browser/webview blocks storage (private mode, in-app webviews, strict
+      // privacy). The app already degrades to guest mode — these are environment,
+      // not bugs, and can't be fixed in code.
+      /localStorage/,
+      /sessionStorage/,
+      "Access is denied for this document",
+      "The request was denied",
       // Universally non-actionable noise.
       "ResizeObserver loop limit exceeded",
       "ResizeObserver loop completed with undelivered notifications",
