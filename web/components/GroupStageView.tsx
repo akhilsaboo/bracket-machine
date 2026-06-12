@@ -23,10 +23,10 @@ const TOUR_SEEN_KEY = "wc2026-tour-seen";
 export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
   const { predictions, setManyScores, setManyKnockout, bracketSubmitted, setBracketSubmitted, setFillMode, hydrated, now, isPreview } = usePredictions();
   const { user, requestSignIn } = useAuth();
-  const { truth } = useTournament(now, isPreview);
-  // Count already-played matches (resolved from real results) as done, so a late
-  // joiner who only has the still-playable games left can still finish.
-  const complete = allGroupsComplete(withResults(predictions, truth?.groupResults ?? {}));
+  const { bracketResults } = useTournament(now, isPreview);
+  // Count matches resolved from real results (finished + in-progress) as done, so a
+  // late joiner who only has the still-playable games left can still finish.
+  const complete = allGroupsComplete(withResults(predictions, bracketResults));
 
   // First load: show the welcome tour once, then chain into the auto-fill nudge
   // (only when the bracket is still empty).
@@ -77,8 +77,8 @@ export function GroupStageView({ onSubmitted }: { onSubmitted?: () => void }) {
     }
     setManyScores(pickable);
     // Resolve the knockout from EFFECTIVE predictions (the autofilled picks + real
-    // results for already-played matches) so the standings/bracket are correct.
-    const effective = withResults({ ...predictions, ...pickable }, truth?.groupResults ?? {});
+    // results for already-played/in-progress matches) so the standings are correct.
+    const effective = withResults({ ...predictions, ...pickable }, bracketResults);
     setManyKnockout(buildKnockoutWinners(mode, effective, opts));
     // Record which persona generated this bracket (owner analytics).
     setFillMode(mode);

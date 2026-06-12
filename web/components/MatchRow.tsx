@@ -27,15 +27,22 @@ export function MatchRow({
   showGroup = false,
   locked = false,
   result,
+  liveResult,
 }: {
   fixture: Fixture;
   showGroup?: boolean;
   locked?: boolean;
   /** When the match has finished, the real result enables grading. */
   result?: GroupResult | null;
+  /** Current score of an in-progress match (provisional, not graded). */
+  liveResult?: GroupResult | null;
 }) {
   const { predictions, setScore } = usePredictions();
   const score = predictions[fixture.id] ?? { home: null, away: null };
+  // Live = in-progress score with no final result yet. If the user has no pick of
+  // their own (e.g. they joined after kickoff), display the live score read-only.
+  const isLive = !!liveResult && !result;
+  const showLive = isLive && score.home === null;
   const home = team(fixture.home);
   const away = team(fixture.away);
   const result_outcome = outcome(score.home, score.away);
@@ -149,16 +156,26 @@ export function MatchRow({
     </div>
   );
 
-  // Container tint follows the grade when present, else the existing locked look.
+  // Small "LIVE" pill shown in place of the draw/grade slot for in-progress games.
+  const livePill = (
+    <div className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-red-500 px-2 text-[9px] font-bold uppercase tracking-wide text-white">
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+      Live
+    </div>
+  );
+
+  // Container tint follows the grade when present, else live, else the locked look.
   const containerTint = grade
     ? grade === "exact"
       ? "bg-emerald-500/5"
       : grade === "correct"
         ? "bg-amber-400/[0.07]"
         : "bg-red-500/[0.08]"
-    : locked
-      ? "bg-red-500/[0.06] opacity-80"
-      : "";
+    : isLive
+      ? "bg-red-500/[0.05]"
+      : locked
+        ? "bg-red-500/[0.06] opacity-80"
+        : "";
 
   return (
     <div className={`flex items-center gap-1.5 rounded-md px-1 py-1.5 ${containerTint}`}>
@@ -180,27 +197,29 @@ export function MatchRow({
         aria-label={`${home?.name} goals`}
         inputMode="numeric"
         disabled={locked}
-        value={score.home ?? ""}
+        value={(showLive ? liveResult!.homeGoals : score.home) ?? ""}
         onChange={onChange("home")}
         className={inputCls}
       />
-      {gradeBadge ?? (
-        <button
-          type="button"
-          disabled={locked}
-          onClick={setDraw}
-          aria-pressed={result_outcome === "draw"}
-          title="Set this match as a draw"
-          className={`shrink-0 rounded border px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide transition disabled:opacity-50 ${drawBtn}`}
-        >
-          Draw
-        </button>
-      )}
+      {isLive
+        ? livePill
+        : (gradeBadge ?? (
+            <button
+              type="button"
+              disabled={locked}
+              onClick={setDraw}
+              aria-pressed={result_outcome === "draw"}
+              title="Set this match as a draw"
+              className={`shrink-0 rounded border px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide transition disabled:opacity-50 ${drawBtn}`}
+            >
+              Draw
+            </button>
+          ))}
       <input
         aria-label={`${away?.name} goals`}
         inputMode="numeric"
         disabled={locked}
-        value={score.away ?? ""}
+        value={(showLive ? liveResult!.awayGoals : score.away) ?? ""}
         onChange={onChange("away")}
         className={inputCls}
       />

@@ -3,7 +3,7 @@
 import { resolveKnockout } from "@/lib/knockout";
 import { withResults } from "@/lib/compute";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
-import type { TournamentTruth } from "@/lib/results";
+import type { GroupResult, TournamentTruth } from "@/lib/results";
 import { knockoutGrader } from "@/lib/scoring";
 import { BracketTree } from "./BracketTree";
 
@@ -12,6 +12,7 @@ export function MemberBracketView({
   predictions,
   knockout,
   truth,
+  bracketResults,
   tiebreakerGoals,
   onBack,
 }: {
@@ -19,12 +20,13 @@ export function MemberBracketView({
   predictions: Predictions;
   knockout: KnockoutWinners;
   truth: TournamentTruth | null;
+  bracketResults: Record<string, GroupResult>;
   tiebreakerGoals: number | null;
   onBack: () => void;
 }) {
-  // Resolve from effective predictions so a late joiner's bracket (real results
-  // fill matches they couldn't pick) still displays for pool-mates.
-  const resolved = resolveKnockout(withResults(predictions, truth?.groupResults ?? {}), knockout);
+  // Resolve from effective predictions (finished + live results fill matches the
+  // member couldn't pick) so a late joiner's bracket still displays for pool-mates.
+  const resolved = resolveKnockout(withResults(predictions, bracketResults), knockout);
 
   if (!resolved) {
     return (

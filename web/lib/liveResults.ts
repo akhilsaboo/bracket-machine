@@ -13,7 +13,8 @@ import {
 } from "@/lib/results";
 
 export interface LiveResults {
-  groupResults: Record<string, GroupResult>;
+  groupResults: Record<string, GroupResult>; // FINISHED group matches (final)
+  liveResults: Record<string, GroupResult>; // IN-PROGRESS group matches (current, provisional)
   knockoutWinners: Record<number, string>;
   updatedAt: string;
 }
@@ -41,10 +42,15 @@ async function load(): Promise<LiveResults | null> {
 
 interface Tournament {
   loading: boolean;
-  /** Final result for a fixture, or null if not played / unknown. */
+  /** FINAL result for a fixture, or null if not finished. Used for grading/scoring. */
   groupResultFor: (f: Fixture) => GroupResult | null;
-  /** Single tournament truth for scoring (group + knockout). */
+  /** Current score of an in-progress match, or null. Provisional — for display only. */
+  liveResultFor: (f: Fixture) => GroupResult | null;
+  /** Single tournament truth for SCORING (finished results only). */
   truth: TournamentTruth | null;
+  /** Results to RESOLVE a bracket with: finished + live (so a user joining during a
+   *  live game isn't blocked). Live scores are provisional; finished ones win. */
+  bracketResults: Record<string, GroupResult>;
   /** The real Round of 32, once the group stage is complete. */
   round32: ResolvedFixture[] | null;
 }
@@ -70,13 +76,17 @@ function useLiveResults() {
 
   return useMemo(() => {
     const groupResults = data?.groupResults ?? {};
+    const liveResults = data?.liveResults ?? {};
+    // Finished results override live ones (a game that just finished wins over its
+    // stale in-progress score).
+    const bracketResults = { ...liveResults, ...groupResults };
     const preds: Predictions = {};
     for (const [id, r] of Object.entries(groupResults)) preds[id] = { home: r.homeGoals, away: r.awayGoals };
     const r32 = allGroupsComplete(preds) ? round32(preds) : null;
     const truth: TournamentTruth | null = data
       ? { groupResults, knockoutWinners: data.knockoutWinners ?? {} }
       : null;
-    return { groupResults, truth, round32: r32, loading };
+    return { groupResults, liveResults, bracketResults, truth, round32: r32, loading };
   }, [data, loading]);
 }
 
@@ -89,17 +99,22 @@ export function useTournament(now: Date, isPreview: boolean): Tournament {
   const live = useLiveResults();
   return useMemo(() => {
     if (isPreview) {
+      const truth = buildMockTournament(now);
       return {
         loading: false,
         groupResultFor: (f: Fixture) => mockGroupResult(f, now),
-        truth: buildMockTournament(now),
+        liveResultFor: () => null, // no in-progress games in the deterministic preview
+        truth,
+        bracketResults: truth.groupResults,
         round32: realRound32(now, true),
       };
     }
     return {
       loading: live.loading,
       groupResultFor: (f: Fixture) => live.groupResults[f.id] ?? null,
+      liveResultFor: (f: Fixture) => live.liveResults[f.id] ?? null,
       truth: live.truth,
+      bracketResults: live.bracketResults,
       round32: live.round32,
     };
   }, [isPreview, now, live]);

@@ -37,10 +37,11 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
 
   const isSecondChance = activeKind === "second_chance";
   // Tournament truth + real R32: mock under preview, real ESPN feed otherwise.
-  const { truth, round32: realR32 } = useTournament(now, isPreview);
-  // Already-played matches the user couldn't pick resolve from real results, so a
-  // late joiner only needs to predict what's still playable. (Their own picks win.)
-  const effective = withResults(predictions, truth?.groupResults ?? {});
+  const { truth, bracketResults, round32: realR32 } = useTournament(now, isPreview);
+  // Matches the user couldn't pick (already played OR in progress) resolve from real
+  // results — finished + live — so a late joiner only predicts what's still playable.
+  // Their own picks always win; live scores are provisional until full time.
+  const effective = withResults(predictions, bracketResults);
 
   let resolved: Map<number, KOMatch>;
   if (isSecondChance) {

@@ -281,7 +281,7 @@ function PoolDetail({
   const [reloadKey, setReloadKey] = useState(0);
   const canViewBrackets = isKnockoutStarted(now);
   // Single tournament truth (mock in preview, real ESPN feed otherwise).
-  const { truth, groupResultFor, round32 } = useTournament(now, isPreview);
+  const { truth, bracketResults, groupResultFor, round32 } = useTournament(now, isPreview);
 
   // My attributed bracket ids in THIS pool (null until set).
   const myMember = members.find((m) => m.user_id === currentUserId);
@@ -496,6 +496,7 @@ function PoolDetail({
           predictions={b.predictions}
           knockout={b.knockout}
           truth={truth}
+          bracketResults={bracketResults}
           tiebreakerGoals={b.tiebreaker_total_goals}
           onBack={() => setViewingMemberId(null)}
         />

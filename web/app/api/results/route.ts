@@ -15,7 +15,8 @@ const ALIAS: Record<string, string> = { CUW: "CUR" }; // ESPN code -> our code
 const norm = (c: string | undefined) => (c ? (ALIAS[c] ?? c) : "");
 
 interface ResultsPayload {
-  groupResults: Record<string, { homeGoals: number; awayGoals: number }>;
+  groupResults: Record<string, { homeGoals: number; awayGoals: number }>; // FINISHED (final)
+  liveResults: Record<string, { homeGoals: number; awayGoals: number }>; // IN-PROGRESS (provisional)
   knockoutWinners: Record<number, string>; // Phase B — populated once KO games are real
   updatedAt: string;
 }
@@ -53,6 +54,7 @@ export async function GET() {
   for (const f of SCHEDULE) byPair.set(`${f.home}:${f.away}`, f.id);
 
   const groupResults: ResultsPayload["groupResults"] = {};
+  const liveResults: ResultsPayload["liveResults"] = {};
   // Knockout winner by team-pair (real KO matches — pairing NOT in the group set).
   const koWinnerByPair = new Map<string, string>();
   try {
@@ -65,7 +67,8 @@ export async function GET() {
     // knockout's first UTC day) and never overwrite, so the group match — which
     // always plays before any same-teams knockout rematch — wins.
     for (const e of d.events ?? []) {
-      if (e.status?.type?.state !== "post") continue; // only finished matches
+      const state = e.status?.type?.state;
+      if (state !== "post" && state !== "in") continue; // finished or in-progress
       const cs = e.competitions?.[0]?.competitors ?? [];
       const home = cs.find((c) => c.homeAway === "home");
       const away = cs.find((c) => c.homeAway === "away");
@@ -74,14 +77,19 @@ export async function GET() {
       const ac = norm(away.team?.abbreviation);
       const groupId = byPair.get(`${hc}:${ac}`);
       if (groupId) {
-        if (groupResults[groupId]) continue; // already recorded
         const hg = parseInt(home.score ?? "", 10);
         const ag = parseInt(away.score ?? "", 10);
         if (Number.isNaN(hg) || Number.isNaN(ag)) continue;
-        groupResults[groupId] = { homeGoals: hg, awayGoals: ag };
-      } else if (hc && ac) {
-        // Not a group fixture → a knockout match. Record the winner (ESPN marks
-        // the winning competitor, so ET/penalties are handled for us).
+        if (state === "post") {
+          if (!groupResults[groupId]) groupResults[groupId] = { homeGoals: hg, awayGoals: ag };
+        } else {
+          // In-progress: record the current (provisional) score so a user joining
+          // mid-game isn't blocked. Final result lands in groupResults at full time.
+          liveResults[groupId] = { homeGoals: hg, awayGoals: ag };
+        }
+      } else if (hc && ac && state === "post") {
+        // Not a group fixture → a finished knockout match. Record the winner (ESPN
+        // marks the winning competitor, so ET/penalties are handled for us).
         const wc = home.winner ? hc : away.winner ? ac : null;
         if (wc) koWinnerByPair.set(pairKey(hc, ac), wc);
       }
@@ -110,7 +118,9 @@ export async function GET() {
     }
   }
 
-  const data: ResultsPayload = { groupResults, knockoutWinners, updatedAt: new Date().toISOString() };
+  // A match can't be both finished and live — drop any live entry that has finalized.
+  for (const id of Object.keys(groupResults)) delete liveResults[id];
+  const data: ResultsPayload = { groupResults, liveResults, knockoutWinners, updatedAt: new Date().toISOString() };
   cache = { data, at: Date.now() };
   return Response.json(data, { headers: { "cache-control": "no-store" } });
 }
