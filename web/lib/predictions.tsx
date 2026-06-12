@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { applyResetEpoch } from "@/lib/resetEpoch";
+import { pickProgress } from "@/lib/compute";
 
 export interface Score {
   home: number | null;
@@ -52,7 +53,9 @@ export interface BracketSummary {
   kind: BracketKind;
   createdAt: string;
   predicted: number; // group matches with both scores filled (0..72)
-  submitted: boolean; // finalized via "Submit bracket" (required to enter a pool)
+  picksMade: number; // picks made among still-pickable matches
+  picksTotal: number; // total still-pickable matches (already-played ones excluded)
+  submitted: boolean; // finalized via "Submit bracket"
 }
 
 export const MAX_BRACKETS = 25;
@@ -381,19 +384,23 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
 
   const active = store.records[store.activeId] ?? store.records[store.order[0]];
   const activeState = active?.state ?? emptyState();
+  const now = previewISO ? new Date(previewISO) : new Date(nowMs);
   const brackets: BracketSummary[] = store.order
     .map((id) => store.records[id])
     .filter(Boolean)
-    .map((r) => ({
-      id: r.id,
-      name: r.name,
-      kind: r.kind,
-      createdAt: r.createdAt,
-      predicted: predictedCount(r.state),
-      submitted: r.state.bracketSubmitted,
-    }));
-
-  const now = previewISO ? new Date(previewISO) : new Date(nowMs);
+    .map((r) => {
+      const [picksMade, picksTotal] = pickProgress(r.state.predictions, now);
+      return {
+        id: r.id,
+        name: r.name,
+        kind: r.kind,
+        createdAt: r.createdAt,
+        predicted: predictedCount(r.state),
+        picksMade,
+        picksTotal,
+        submitted: r.state.bracketSubmitted,
+      };
+    });
 
   return (
     <PredictionContext.Provider

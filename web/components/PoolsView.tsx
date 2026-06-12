@@ -950,22 +950,18 @@ function ChooseEntryModal({
         <div className="brand-gradient px-5 py-4 text-white">
           <div className="text-lg font-extrabold">{title}</div>
           <p className="text-xs text-white/80">
-            Only a <strong>submitted</strong> bracket can compete.
+            Pick the bracket you&apos;ll compete with — you can keep editing it as games play.
           </p>
         </div>
         <div className="max-h-[55vh] space-y-1 overflow-y-auto p-3">
           {brackets.map((b) => (
             <button
               key={b.id}
-              onClick={() => b.submitted && onPick(b.id)}
-              disabled={!b.submitted}
-              title={b.submitted ? "" : "Submit this bracket first (Bracket tab → Submit)"}
+              onClick={() => onPick(b.id)}
               className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
-                !b.submitted
-                  ? "cursor-not-allowed border-slate-200 opacity-50 dark:border-slate-700"
-                  : b.id === currentId
-                    ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10"
-                    : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
+                b.id === currentId
+                  ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10"
+                  : "border-slate-200 hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
               }`}
             >
               <span className="truncate font-medium">
@@ -973,7 +969,7 @@ function ChooseEntryModal({
                 {b.name}
               </span>
               <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
-                {b.submitted ? `${b.predicted}/72` : "Draft — submit first"}
+                {b.kind === "second_chance" ? "" : `${b.picksMade}/${b.picksTotal}`}
               </span>
             </button>
           ))}
@@ -982,7 +978,7 @@ function ChooseEntryModal({
               onClick={onCreate}
               className="mt-1 flex w-full items-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-left text-sm font-semibold text-[var(--wc-accent)] transition hover:bg-[var(--wc-accent)]/5 dark:border-slate-700"
             >
-              ＋ Create a new bracket (fill &amp; submit it, then enter)
+              ＋ Create a new bracket
             </button>
           )}
           {brackets.length === 0 && !onCreate && (
