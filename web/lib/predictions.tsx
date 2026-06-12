@@ -11,6 +11,7 @@ import {
 } from "react";
 import { applyResetEpoch } from "@/lib/resetEpoch";
 import { pickProgress } from "@/lib/compute";
+import { getTombstones } from "@/lib/tombstones";
 
 export interface Score {
   home: number | null;
@@ -186,10 +187,20 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<Store>;
-        if (parsed.records && parsed.order && parsed.activeId && parsed.records[parsed.activeId]) {
-          setStore({ records: parsed.records, order: parsed.order, activeId: parsed.activeId });
-          setHydrated(true);
-          return;
+        if (parsed.records && parsed.order && parsed.activeId) {
+          // Strip any brackets the user has deleted — a deleted bracket must never
+          // come back, however it got into local storage (the "reappears after a
+          // refresh" bug). Belt-and-suspenders with the sync's import filter.
+          const tombstones = getTombstones();
+          const order = parsed.order.filter((id) => parsed.records![id] && !tombstones.has(id));
+          if (order.length > 0) {
+            const records: Record<string, BracketRecord> = {};
+            for (const id of order) records[id] = parsed.records![id];
+            const activeId = order.includes(parsed.activeId) ? parsed.activeId : order[0];
+            setStore({ records, order, activeId });
+            setHydrated(true);
+            return;
+          }
         }
       }
       // Migrate a legacy single bracket into the new multi-bracket store.
