@@ -55,12 +55,31 @@ export async function loadUserBrackets(
     .from("brackets")
     .select(SELECT)
     .eq("user_id", userId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: true });
   if (error) {
     console.error("brackets load error:", error);
     return [];
   }
   return (data ?? []).map((r) => rowToRecord(r as BracketRow));
+}
+
+/** Ids of the user's brackets that were soft-deleted (on any device), so the sync
+ *  can remove them locally + stop re-uploading them. */
+export async function loadDeletedBracketIds(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("brackets")
+    .select("id")
+    .eq("user_id", userId)
+    .not("deleted_at", "is", null);
+  if (error) {
+    console.error("deleted brackets load error:", error);
+    return [];
+  }
+  return (data ?? []).map((r) => (r as { id: string }).id);
 }
 
 /** Insert-or-update a bracket by its (client-generated) id. Returns the error
@@ -89,11 +108,16 @@ export async function upsertBracket(
   return error?.message ?? null;
 }
 
-/** Remove a bracket row (used when the user deletes a bracket while signed in).
- *  Returns false if the server rejected the delete (e.g. RLS), so the caller can
- *  avoid a local-only delete that would "reappear" on the next sync. */
+/** Soft-delete a bracket (stamp deleted_at) so the deletion is recorded server-side
+ *  and propagates to all the user's devices — a hard delete leaves no trace, so
+ *  another device re-uploads it and it "reappears". Returns false on failure so the
+ *  caller can surface it. */
 export async function deleteBracketRow(supabase: SupabaseClient, id: string): Promise<boolean> {
-  const { error } = await supabase.from("brackets").delete().eq("id", id);
+  const { error } = await supabase
+    .from("brackets")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null); // idempotent: don't re-stamp an already-deleted one
   if (error) console.error("bracket delete error:", error);
   return !error;
 }

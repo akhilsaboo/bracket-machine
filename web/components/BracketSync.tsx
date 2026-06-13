@@ -3,8 +3,8 @@
 import { useEffect, useRef } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { deleteBracketRow, loadUserBrackets, upsertBracket } from "@/lib/brackets";
-import { getTombstones } from "@/lib/tombstones";
+import { deleteBracketRow, loadDeletedBracketIds, loadUserBrackets, upsertBracket } from "@/lib/brackets";
+import { addTombstone, getTombstones } from "@/lib/tombstones";
 import { usePredictions } from "@/lib/predictions";
 
 /**
@@ -27,6 +27,7 @@ export function BracketSync() {
     activeId,
     allRecords,
     importServerBrackets,
+    deleteBracket,
     hydrated,
   } = usePredictions();
 
@@ -45,13 +46,23 @@ export function BracketSync() {
     let cancelled = false;
     (async () => {
       loadingRef.current = true;
-      const serverRecs = await loadUserBrackets(sb, userId);
+      const [serverRecs, serverDeletedIds] = await Promise.all([
+        loadUserBrackets(sb, userId), // already excludes soft-deleted
+        loadDeletedBracketIds(sb, userId), // ids deleted on ANY of the user's devices
+      ]);
       if (cancelled) return;
-      // Never resurrect a bracket the user deleted: re-attempt the server delete for
-      // any tombstoned bracket still present, and exclude tombstoned ones from the
-      // import + the local-only re-push. (Tombstones are forward-only — empty for
-      // anyone who hadn't deleted under the new code, so the past is left untouched.)
+      // Propagate server-side deletes to THIS device: remove them locally and
+      // tombstone them so they're never re-imported or re-uploaded. Tombstones also
+      // cover deletes made on this device before the server round-trips.
+      const localIds = new Set(allRecords().map((r) => r.id));
+      for (const id of serverDeletedIds) {
+        addTombstone(id);
+        if (localIds.has(id)) deleteBracket(id);
+      }
       const tombstones = getTombstones();
+      // Resilience: if a locally-deleted bracket never got soft-deleted on the
+      // server (e.g. a transient failure), it's still active in serverRecs — re-stamp
+      // it so it propagates to the user's other devices.
       for (const r of serverRecs) {
         if (tombstones.has(r.id)) void deleteBracketRow(sb, r.id);
       }

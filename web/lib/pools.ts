@@ -188,7 +188,8 @@ export async function getBracketsByIds(
   const { data, error } = await sb
     .from("brackets")
     .select("id, user_id, predictions, knockout, submitted_at, tiebreaker_total_goals, kind")
-    .in("id", ids);
+    .in("id", ids)
+    .is("deleted_at", null);
   if (error) {
     console.error("getBracketsByIds error:", error);
     return [];
@@ -205,6 +206,7 @@ export async function getMemberBrackets(
     .from("brackets")
     .select("id, user_id, predictions, knockout, submitted_at, tiebreaker_total_goals, created_at")
     .in("user_id", userIds)
+    .is("deleted_at", null)
     .order("created_at", { ascending: true });
   if (error) {
     console.error("getMemberBrackets error:", error);

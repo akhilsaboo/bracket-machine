@@ -77,8 +77,9 @@ async function readAllEntries(sb: SupabaseClient): Promise<BracketRow[]> {
       .from("brackets")
       .select("user_id, name, predictions, knockout")
       .eq("kind", "normal")
-      // Every normal bracket is an entry — incl. unsubmitted "predict as you go"
-      // brackets people compete with in pools. Empty drafts score 0 → never top-N.
+      .is("deleted_at", null)
+      // Every (non-deleted) normal bracket is an entry — incl. unsubmitted "predict
+      // as you go" brackets people compete with in pools. Empty drafts score 0.
       .order("user_id", { ascending: true })
       .range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
@@ -111,7 +112,8 @@ async function compute(sb: SupabaseClient, origin: string): Promise<Snapshot> {
   const { count } = await sb
     .from("brackets")
     .select("user_id", { count: "exact", head: true })
-    .eq("kind", "normal");
+    .eq("kind", "normal")
+    .is("deleted_at", null);
 
   if (!truth || !hasResults) {
     return { rows: [], totalEntries: count ?? 0, hasResults: false, updatedAt: new Date().toISOString() };
