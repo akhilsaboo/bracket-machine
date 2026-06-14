@@ -9,6 +9,7 @@ import { SCHEDULE, type Fixture } from "@/lib/data";
 import { isKnockoutStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
 import { scoreEverything, scoreSecondChance } from "@/lib/scoring";
+import { percentileOf } from "@/lib/leaderboard";
 import { upsertBracket } from "@/lib/brackets";
 import { champion, resolveKnockout, resolveKnockoutFrom } from "@/lib/knockout";
 import { flag } from "@/lib/flags";
@@ -279,6 +280,10 @@ function PoolDetail({
   const [linkCopied, setLinkCopied] = useState(false);
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // Global score distribution (every bracket worldwide), so each member's pool row
+  // can show the SAME ESPN-style percentile they'd have on the global board — i.e.
+  // their standing vs. everyone, not relative to this pool (so #1 here isn't 100%).
+  const [globalScores, setGlobalScores] = useState<number[]>([]);
   const canViewBrackets = isKnockoutStarted(now);
   // Single tournament truth (mock in preview, real ESPN feed otherwise).
   const { truth, bracketResults, groupResultFor, round32 } = useTournament(now, isPreview);
@@ -344,6 +349,20 @@ function PoolDetail({
       setLoading(false);
     })();
   }, [pool.id, reloadKey]);
+
+  // Pull the global distribution once so pool percentiles match the global board.
+  useEffect(() => {
+    let on = true;
+    fetch("/api/leaderboard")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { scores?: number[] } | null) => {
+        if (on && d?.scores) setGlobalScores(d.scores);
+      })
+      .catch(() => {});
+    return () => {
+      on = false;
+    };
+  }, []);
 
   const [entryError, setEntryError] = useState<string | null>(null);
   const [transferTo, setTransferTo] = useState("");
@@ -714,6 +733,12 @@ function PoolDetail({
                 <th className="w-8 px-3 py-2 text-left">#</th>
                 <th className="px-3 py-2 text-left">Member</th>
                 <th className="w-16 px-3 py-2 text-right">Pts</th>
+                <th
+                  className="w-14 px-3 py-2 text-right"
+                  title="Percentile vs. ALL brackets worldwide — your global standing, not relative to this pool (so #1 here isn't necessarily 100%)."
+                >
+                  PCTL
+                </th>
                 <th className="hidden w-14 px-3 py-2 text-right sm:table-cell" title="Group-stage points">Grp</th>
                 <th className="hidden w-14 px-3 py-2 text-right sm:table-cell" title="Knockout points">KO</th>
                 <th className="w-12 px-3 py-2 text-right" title="Exact-score predictions">★</th>
@@ -734,6 +759,9 @@ function PoolDetail({
                       {r.display_name} {r.isYou && <span className="ml-1 text-[10px] text-[var(--wc-accent)]">YOU</span>}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums font-bold">{r.totalPoints}</td>
+                    <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--wc-accent)]">
+                      {globalScores.length ? `${percentileOf(globalScores, r.totalPoints)}%` : "—"}
+                    </td>
                     <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.groupPoints}</td>
                     <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.koPoints}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-emerald-700 dark:text-emerald-300">

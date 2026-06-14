@@ -35,6 +35,9 @@ interface Snapshot {
   totalEntries: number;
   hasResults: boolean;
   updatedAt: string;
+  // Every entry's score, sorted ascending — the global distribution used to compute
+  // ESPN-style percentiles on both this board and pool boards. Empty pre-results.
+  scores: number[];
 }
 
 function admin(): SupabaseClient | null {
@@ -116,7 +119,7 @@ async function compute(sb: SupabaseClient, origin: string): Promise<Snapshot> {
     .is("deleted_at", null);
 
   if (!truth || !hasResults) {
-    return { rows: [], totalEntries: count ?? 0, hasResults: false, updatedAt: new Date().toISOString() };
+    return { rows: [], totalEntries: count ?? 0, hasResults: false, updatedAt: new Date().toISOString(), scores: [] };
   }
 
   const entries = await readAllEntries(sb);
@@ -148,7 +151,10 @@ async function compute(sb: SupabaseClient, origin: string): Promise<Snapshot> {
   );
 
   const rows: Row[] = scored.slice(0, TOP_N).map((r, i) => ({ rank: i + 1, ...r }));
-  return { rows, totalEntries: entries.length, hasResults: true, updatedAt: new Date().toISOString() };
+  // Full score distribution (ascending) so clients can rank any score — the top-N
+  // rows here AND each pool member's score — into the same global percentile.
+  const scores = scored.map((r) => r.points).sort((a, b) => a - b);
+  return { rows, totalEntries: entries.length, hasResults: true, updatedAt: new Date().toISOString(), scores };
 }
 
 export async function GET(req: Request) {

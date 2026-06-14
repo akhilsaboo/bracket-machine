@@ -5,6 +5,7 @@
 // just renders a small ranked list. Highlights the signed-in user if they're in it.
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { percentileOf } from "@/lib/leaderboard";
 
 interface Row {
   rank: number;
@@ -21,6 +22,7 @@ interface Snapshot {
   totalEntries: number;
   hasResults: boolean;
   updatedAt: string;
+  scores: number[];
 }
 
 export function GlobalLeaderboard() {
@@ -78,6 +80,12 @@ export function GlobalLeaderboard() {
                 <th className="px-3 py-2 text-right">Group</th>
                 <th className="px-3 py-2 text-right">KO</th>
                 <th className="px-3 py-2 text-right">Total</th>
+                <th
+                  className="px-3 py-2 text-right"
+                  title="Percentile — the share of all brackets worldwide your score beats or ties. The global leader is 100%."
+                >
+                  PCTL
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -103,6 +111,9 @@ export function GlobalLeaderboard() {
                     <td className="px-3 py-2 text-right tabular-nums text-slate-500">{r.group}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-500">{r.ko}</td>
                     <td className="px-3 py-2 text-right font-bold tabular-nums">{r.points}</td>
+                    <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--wc-accent,#7c3aed)]">
+                      {snap.scores?.length ? `${percentileOf(snap.scores, r.points)}%` : "—"}
+                    </td>
                   </tr>
                 );
               })}
