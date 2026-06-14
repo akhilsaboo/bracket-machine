@@ -82,7 +82,7 @@ export function GlobalLeaderboard() {
                 <th className="px-3 py-2 text-right">Total</th>
                 <th
                   className="px-3 py-2 text-right"
-                  title="Percentile — the share of all brackets worldwide your score beats or ties. The global leader is 100%."
+                  title="Percentile — the share of all brackets worldwide your score beats (ESPN-style). The leader tops out at 99%; nobody hits a perfect 100%."
                 >
                   PCTL
                 </th>

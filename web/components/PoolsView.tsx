@@ -735,7 +735,7 @@ function PoolDetail({
                 <th className="w-16 px-3 py-2 text-right">Pts</th>
                 <th
                   className="w-14 px-3 py-2 text-right"
-                  title="Percentile vs. ALL brackets worldwide — your global standing, not relative to this pool (so #1 here isn't necessarily 100%)."
+                  title="Percentile vs. ALL brackets worldwide — your global standing (ESPN-style), not relative to this pool. Tops out at 99%; the pool's #1 shows their world standing, not necessarily the field's best."
                 >
                   PCTL
                 </th>
