@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { PSA_KEY, PSA_SEND_AT_ISO, PSA_SUBJECT, psaHtml, sendBatch } from "@/lib/email";
+import { PSA_KEY, PSA_SEND_AT_ISO, PSA_SUBJECT, psaHtml, sendBatch, sendEmail } from "@/lib/email";
 
 // One-off PSA broadcast to EVERY signed-up email (minus opt-outs). Admin/cron-gated
 // and safe by construction:
@@ -57,6 +57,16 @@ export async function GET(req: Request) {
   const alreadySent = !!log;
 
   const people = await recipients(sb);
+
+  // Test path: ?to=<email> sends ONE copy to that address (real unsubscribe link if
+  // they're a known user), bypassing the schedule + idempotency. For previewing.
+  const to = params.get("to");
+  if (to) {
+    if (!process.env.RESEND_API_KEY) return Response.json({ error: "RESEND_API_KEY not set" }, { status: 500 });
+    const known = people.find((p) => p.email.toLowerCase() === to.toLowerCase());
+    const ok = await sendEmail(to, PSA_SUBJECT, psaHtml(known?.id ?? to));
+    return Response.json({ test: true, to, sent: ok, knownRecipient: !!known });
+  }
 
   if (dry) {
     return Response.json({
