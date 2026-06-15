@@ -34,8 +34,13 @@ export async function GET(req: Request) {
   const sb = admin();
   if (!sb) return Response.json({ error: "server not configured" }, { status: 500 });
 
-  const secret = process.env.ADMIN_SECRET || process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  // Accept EITHER secret: Vercel cron auto-auths with CRON_SECRET, while a manual
+  // admin call can use ADMIN_SECRET. (Checking only one would lock out the other.)
+  const provided = req.headers.get("authorization");
+  const authed =
+    (!!process.env.CRON_SECRET && provided === `Bearer ${process.env.CRON_SECRET}`) ||
+    (!!process.env.ADMIN_SECRET && provided === `Bearer ${process.env.ADMIN_SECRET}`);
+  if (!authed) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
