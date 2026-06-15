@@ -13,7 +13,7 @@ import { percentileOf } from "@/lib/leaderboard";
 import { upsertBracket } from "@/lib/brackets";
 import { champion, resolveKnockout, resolveKnockoutFrom } from "@/lib/knockout";
 import { flag } from "@/lib/flags";
-import { MemberBracketView } from "./MemberBracketView";
+import { ViewBracket } from "./ViewBracket";
 import { DisplayNamePrompt } from "./DisplayNamePrompt";
 import {
   createPool,
@@ -250,6 +250,7 @@ function JoinPoolForm({ onJoined }: { onJoined: (poolId: string) => void }) {
 
 interface LeaderboardRow {
   user_id: string;
+  bracketId: string | null;
   display_name: string;
   isYou: boolean;
   totalPoints: number;
@@ -284,7 +285,6 @@ function PoolDetail({
   // can show the SAME ESPN-style percentile they'd have on the global board — i.e.
   // their standing vs. everyone, not relative to this pool (so #1 here isn't 100%).
   const [globalScores, setGlobalScores] = useState<number[]>([]);
-  const canViewBrackets = isKnockoutStarted(now);
   // Single tournament truth (mock in preview, real ESPN feed otherwise).
   const { truth, bracketResults, groupResultFor, round32 } = useTournament(now, isPreview);
 
@@ -424,6 +424,7 @@ function PoolDetail({
         : null;
       return {
         user_id: m.user_id,
+        bracketId: b?.id ?? null,
         display_name: m.display_name ?? "Anonymous",
         isYou: m.user_id === currentUserId,
         totalPoints: score?.total ?? 0,
@@ -509,7 +510,8 @@ function PoolDetail({
 
   const isOwner = pool.owner_id === currentUserId;
 
-  // If a leaderboard row was clicked, swap to that member's read-only bracket.
+  // If a leaderboard row was clicked, swap to that member's read-only bracket —
+  // the same lock-masked "view as them" used on the global board.
   if (viewingMemberId) {
     const m = members.find((x) => x.user_id === viewingMemberId);
     const b = brackets.find((x) => x.user_id === viewingMemberId);
@@ -517,14 +519,11 @@ function PoolDetail({
       setViewingMemberId(null);
     } else {
       return (
-        <MemberBracketView
+        <ViewBracket
+          bracketId={b.id}
           name={m.display_name ?? "Anonymous"}
-          predictions={b.predictions}
-          knockout={b.knockout}
-          truth={truth}
-          bracketResults={bracketResults}
-          tiebreakerGoals={b.tiebreaker_total_goals}
-          onBack={() => setViewingMemberId(null)}
+          bracketName=""
+          onClose={() => setViewingMemberId(null)}
         />
       );
     }
@@ -717,9 +716,7 @@ function PoolDetail({
         <header className="flex items-center justify-between bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
           <span>Leaderboard</span>
           <span className="text-[10px] font-normal text-slate-400">
-            {canViewBrackets
-              ? "Tap a name to see their bracket"
-              : "🔒 Brackets unlock once the knockout begins (Jun 28)"}
+            Tap a name to see their bracket (locked picks only)
           </span>
         </header>
         {loading ? (
@@ -747,7 +744,7 @@ function PoolDetail({
             </thead>
             <tbody>
               {leaderboard.map((r, i) => {
-                const clickable = canViewBrackets;
+                const clickable = !!r.bracketId;
                 return (
                   <tr
                     key={r.user_id}

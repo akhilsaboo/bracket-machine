@@ -37,10 +37,24 @@ export function GlobalLeaderboard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const meRef = useRef<HTMLTableRowElement | null>(null);
+  // Refs to each of MY entry rows, keyed by bracket_id. A Map preserves insertion
+  // (= rank) order, so "Jump to me" can step through my brackets best→worst.
+  const myRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const [jumpIdx, setJumpIdx] = useState(0);
+  const [flashId, setFlashId] = useState<string | null>(null);
 
-  const jumpToMe = () =>
-    meRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  // Cycle through my brackets in rank order, ESPN "My Brackets" style — each click
+  // scrolls to the next one and flashes it.
+  const jumpToMe = () => {
+    const ids = [...myRefs.current.keys()];
+    if (ids.length === 0) return;
+    const i = jumpIdx % ids.length;
+    const id = ids[i];
+    myRefs.current.get(id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashId(id);
+    setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1300);
+    setJumpIdx(i + 1);
+  };
 
   useEffect(() => {
     let on = true;
@@ -110,10 +124,16 @@ export function GlobalLeaderboard({
                   return (
                     <tr
                       key={r.bracket_id}
-                      ref={you ? meRef : undefined}
+                      ref={(el) => {
+                        if (!you) return;
+                        if (el) myRefs.current.set(r.bracket_id, el);
+                        else myRefs.current.delete(r.bracket_id);
+                      }}
                       onClick={onViewBracket ? open : undefined}
-                      className={`border-t border-slate-100 dark:border-slate-800 ${
+                      className={`border-t border-slate-100 transition-colors dark:border-slate-800 ${
                         you ? "bg-[var(--wc-accent,#7c3aed)]/10 font-semibold" : ""
+                      } ${
+                        flashId === r.bracket_id ? "ring-2 ring-inset ring-[var(--wc-accent,#7c3aed)]" : ""
                       } ${onViewBracket ? "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50" : ""}`}
                     >
                       <td className="px-3 py-2 tabular-nums text-slate-500">{r.rank}</td>
@@ -147,11 +167,15 @@ export function GlobalLeaderboard({
                 ? `Showing top ${snap.rows.length} of ${snap.totalEntries}`
                 : `${snap.totalEntries} ${snap.totalEntries === 1 ? "entry" : "entries"}`}
             </span>
-            {!!user && snap.rows.some((r) => r.user_id === user.id) && (
-              <button onClick={jumpToMe} className="font-semibold text-[var(--wc-accent,#7c3aed)] hover:underline">
-                ↧ Jump to me
-              </button>
-            )}
+            {(() => {
+              const mine = user ? snap.rows.filter((r) => r.user_id === user.id).length : 0;
+              if (mine === 0) return null;
+              return (
+                <button onClick={jumpToMe} className="font-semibold text-[var(--wc-accent,#7c3aed)] hover:underline">
+                  ↧ {mine > 1 ? `Jump to my brackets (${(jumpIdx % mine) + 1}/${mine})` : "Jump to me"}
+                </button>
+              );
+            })()}
           </div>
         </div>
       )}

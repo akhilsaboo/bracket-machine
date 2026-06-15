@@ -82,7 +82,7 @@ export function ViewBracket({
             <span className="truncate text-slate-800 dark:text-slate-100">{name}</span>
           </div>
           <div className="truncate text-xs text-slate-500 dark:text-slate-400">
-            “{bracketName}” · read-only · picks reveal as each match kicks off
+            “{data?.bracketName || bracketName || "Bracket"}” · read-only · picks reveal as each match kicks off
             {data?.tiebreakerGoals != null && (
               <> · tiebreaker {data.tiebreakerGoals} goals</>
             )}
