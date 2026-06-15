@@ -17,12 +17,16 @@ export const maxDuration = 60;
 // submitted bracket, so this TTL is the main lever on Supabase egress at scale —
 // raise LEADERBOARD_TTL_MS (e.g. to 30–60 min) if egress gets tight. Default 15 min.
 const STALE_MS = Number(process.env.LEADERBOARD_TTL_MS) || 15 * 60 * 1000;
-const TOP_N = 10;
+// How many ranked rows to ship in the snapshot. The board is fully scrollable, so
+// this is just a payload cap — at the current field everyone fits. If the field
+// ever dwarfs this, switch to server-side pagination (see project memory).
+const MAX_ROWS = 500;
 const PAGE = 1000; // PostgREST max rows per request
 
 interface Row {
   rank: number;
   user_id: string;
+  bracket_id: string;
   display_name: string;
   bracket_name: string;
   points: number;
@@ -64,6 +68,7 @@ async function fetchTruth(origin: string): Promise<TournamentTruth | null> {
 }
 
 interface BracketRow {
+  id: string;
   user_id: string;
   name: string;
   predictions: Predictions;
@@ -78,7 +83,7 @@ async function readAllEntries(sb: SupabaseClient): Promise<BracketRow[]> {
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await sb
       .from("brackets")
-      .select("user_id, name, predictions, knockout")
+      .select("id, user_id, name, predictions, knockout")
       .eq("kind", "normal")
       .is("deleted_at", null)
       // Every (non-deleted) normal bracket is an entry — incl. unsubmitted "predict
@@ -133,6 +138,7 @@ async function compute(sb: SupabaseClient, origin: string): Promise<Snapshot> {
     const s = scoreEverything(b.predictions, b.knockout, fixtures, resultFor, truth);
     return {
       user_id: b.user_id,
+      bracket_id: b.id,
       display_name: names.get(b.user_id) ?? "Anonymous",
       bracket_name: b.name || "Bracket",
       points: s.total,
@@ -150,7 +156,7 @@ async function compute(sb: SupabaseClient, origin: string): Promise<Snapshot> {
       a.bracket_name.localeCompare(b.bracket_name),
   );
 
-  const rows: Row[] = scored.slice(0, TOP_N).map((r, i) => ({ rank: i + 1, ...r }));
+  const rows: Row[] = scored.slice(0, MAX_ROWS).map((r, i) => ({ rank: i + 1, ...r }));
   // Full score distribution (ascending) so clients can rank any score — the top-N
   // rows here AND each pool member's score — into the same global percentile.
   const scores = scored.map((r) => r.points).sort((a, b) => a - b);
