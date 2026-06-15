@@ -521,6 +521,7 @@ function PoolDetail({
       return (
         <ViewBracket
           bracketId={b.id}
+          userId={m.user_id}
           name={m.display_name ?? "Anonymous"}
           bracketName=""
           onClose={() => setViewingMemberId(null)}

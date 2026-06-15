@@ -30,7 +30,7 @@ export function GlobalLeaderboard({
   onViewBracket,
 }: {
   /** Open a read-only view of someone's bracket (locked picks only). */
-  onViewBracket?: (b: { bracketId: string; name: string; bracketName: string }) => void;
+  onViewBracket?: (b: { bracketId: string; userId: string; name: string; bracketName: string }) => void;
 } = {}) {
   const { user } = useAuth();
   const [snap, setSnap] = useState<Snapshot | null>(null);
@@ -120,7 +120,12 @@ export function GlobalLeaderboard({
                 {snap.rows.map((r) => {
                   const you = !!user && r.user_id === user.id;
                   const open = () =>
-                    onViewBracket?.({ bracketId: r.bracket_id, name: r.display_name, bracketName: r.bracket_name });
+                    onViewBracket?.({
+                      bracketId: r.bracket_id,
+                      userId: r.user_id,
+                      name: r.display_name,
+                      bracketName: r.bracket_name,
+                    });
                   return (
                     <tr
                       key={r.bracket_id}

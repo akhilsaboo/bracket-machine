@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { pickProgress } from "@/lib/compute";
+import { SCHEDULE } from "@/lib/data";
+import { scoreEverything } from "@/lib/scoring";
 import { usePredictions } from "@/lib/predictions";
 import { useTournament } from "@/lib/liveResults";
 
@@ -22,6 +24,7 @@ import { ViewBracket } from "@/components/ViewBracket";
 type Tab = "group" | "schedule" | "bracket" | "awards" | "pools" | "leaderboard";
 interface Viewing {
   bracketId: string;
+  userId: string;
   name: string;
   bracketName: string;
 }
@@ -39,7 +42,7 @@ export default function Home() {
   // When set, the main area is taken over by a read-only view of someone else's
   // bracket (opened from the leaderboard). Clicking any top tab exits it.
   const [viewing, setViewing] = useState<Viewing | null>(null);
-  const { predictions, reset, hydrated, activeKind, isPreview, now, brackets, createBracket, switchBracket } =
+  const { predictions, knockout, reset, hydrated, activeKind, isPreview, now, brackets, createBracket, switchBracket } =
     usePredictions();
   const [scDismissed, setScDismissed] = useState(false);
   useEffect(() => {
@@ -68,9 +71,22 @@ export default function Home() {
   const tabs = TABS.filter((t) => !(isSecondChance && t.id === "group"));
   const effectiveTab: Tab = isSecondChance && tab === "group" ? "bracket" : tab;
 
+  // Single tournament read (real ESPN feed, or preview mock).
+  const tournament = useTournament(now, isPreview);
+  // Active bracket's live score — same scoring the leaderboard uses — for the
+  // header points badge. Normal brackets only (second-chance has its own scoring).
+  const totalPoints = useMemo(
+    () =>
+      isSecondChance
+        ? 0
+        : scoreEverything(predictions, knockout, SCHEDULE, (f) => tournament.groupResultFor(f), tournament.truth)
+            .total,
+    [isSecondChance, predictions, knockout, tournament],
+  );
+
   // Once the real R32 is known, surface second-chance brackets — but never
   // duplicate: if one already exists the banner opens it instead of creating.
-  const r32Ready = useTournament(now, isPreview).round32 !== null;
+  const r32Ready = tournament.round32 !== null;
   const existingSC = brackets.find((b) => b.kind === "second_chance");
   const showSCBanner = r32Ready && !isSecondChance && !scDismissed;
 
@@ -111,6 +127,15 @@ export default function Home() {
                 Pick every score. Your bracket builds itself — full FIFA tiebreakers, live.
               </p>
             </div>
+            {hydrated && !isSecondChance && (
+              <span
+                title="Your active bracket's score against the real results so far"
+                className="self-center rounded-full bg-white/20 px-3 py-1.5 text-base font-extrabold tabular-nums shadow-sm ring-1 ring-white/20"
+              >
+                🏆 {totalPoints}
+                <span className="ml-1 text-xs font-medium text-white/80">pts</span>
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="rounded-full bg-white/15 px-3 py-1 font-medium tabular-nums">
@@ -180,6 +205,7 @@ export default function Home() {
         {viewing ? (
           <ViewBracket
             bracketId={viewing.bracketId}
+            userId={viewing.userId}
             name={viewing.name}
             bracketName={viewing.bracketName}
             onClose={() => setViewing(null)}
