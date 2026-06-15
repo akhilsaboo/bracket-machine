@@ -65,6 +65,59 @@ export function reminderHtml(m: Milestone, userId: string): string {
   </div></body></html>`;
 }
 
+// ── One-off broadcast PSA (manual, admin-triggered) — "your picks aren't locked"
+export const PSA_KEY = "psa-picks-v1";
+export const PSA_SUBJECT = "Psst — your picks aren’t locked in yet";
+
+export function psaHtml(userId: string): string {
+  const unsub = unsubUrl(userId);
+  return `<!doctype html><html><body style="margin:0;background:#0f172a;font-family:Arial,Helvetica,sans-serif">
+  <div style="max-width:520px;margin:0 auto;padding:24px">
+    <div style="background:linear-gradient(135deg,#7c3aed,#db2777);border-radius:16px;padding:28px 24px;text-align:center;color:#fff">
+      <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;opacity:.9;font-weight:bold">Bracket Machine</div>
+      <div style="font-size:22px;font-weight:800;margin-top:8px">Your picks aren’t locked in yet</div>
+    </div>
+    <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;color:#0f172a">
+      <p style="font-size:15px;line-height:1.5;margin:0 0 16px">Hey — quick note from the person who built Bracket Machine. Now that the group stage is rolling, two things worth knowing:</p>
+      <p style="font-size:15px;line-height:1.5;margin:0 0 16px"><strong>1. You can change any pick right up until that match kicks off.</strong> Nothing locks early — keep tweaking your scores all the way until the knockout round begins.</p>
+      <p style="font-size:15px;line-height:1.5;margin:0 0 20px"><strong>2. Not loving how your bracket’s going? Start a brand-new one anytime.</strong> You’ll only miss the games already played — you’re right back in it for everything still to come. (Up to 25 brackets per account, and they all rank on the leaderboard.)</p>
+      <a href="${APP_URL}" style="display:block;background:#db2777;color:#fff;text-decoration:none;text-align:center;font-weight:700;padding:14px;border-radius:10px;font-size:15px">Open Bracket Machine →</a>
+      <p style="font-size:14px;line-height:1.5;margin:20px 0 0;color:#475569">See you on the leaderboard ⚽<br/>— Akhil, Bracket Machine</p>
+    </div>
+    <p style="text-align:center;color:#64748b;font-size:11px;line-height:1.6;margin-top:18px">
+      You’re getting this because you signed up at bracketmachine.app.<br/>
+      <a href="${unsub}" style="color:#94a3b8">Unsubscribe</a>
+    </p>
+  </div></body></html>`;
+}
+
+/** Send up to 100-per-call via Resend's batch endpoint — fast + within rate
+ *  limits, so a whole-list broadcast finishes in one request. */
+export async function sendBatch(
+  emails: { to: string; subject: string; html: string }[],
+): Promise<{ sent: number; failed: number }> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return { sent: 0, failed: emails.length };
+  const from = process.env.REMINDER_FROM ?? "Bracket Machine <onboarding@resend.dev>";
+  let sent = 0;
+  let failed = 0;
+  for (let i = 0; i < emails.length; i += 100) {
+    const chunk = emails.slice(i, i + 100).map((e) => ({ from, to: e.to, subject: e.subject, html: e.html }));
+    try {
+      const r = await fetch(`${RESEND_URL}/batch`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+        body: JSON.stringify(chunk),
+      });
+      if (r.ok) sent += chunk.length;
+      else failed += chunk.length;
+    } catch {
+      failed += chunk.length;
+    }
+  }
+  return { sent, failed };
+}
+
 /** Send one email via Resend. Returns true on success; false if not configured. */
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;

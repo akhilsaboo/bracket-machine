@@ -20,6 +20,7 @@ import { BracketSwitcher } from "@/components/BracketSwitcher";
 import { PredictionsView } from "@/components/PredictionsView";
 import { GlobalLeaderboard } from "@/components/GlobalLeaderboard";
 import { ViewBracket } from "@/components/ViewBracket";
+import { DevPsaBanner } from "@/components/DevPsaBanner";
 
 type Tab = "group" | "schedule" | "bracket" | "awards" | "pools" | "leaderboard";
 interface Viewing {
@@ -175,6 +176,7 @@ export default function Home() {
       <BracketSync />
       <PoolJoinHandler onJoined={() => setTab("pools")} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+        {!viewing && <DevPsaBanner />}
         {showSCBanner && (
           <div className="mb-5 flex items-center gap-2 rounded-xl border border-[var(--wc-accent)]/30 bg-[var(--wc-accent)]/5 pr-2">
             <button
