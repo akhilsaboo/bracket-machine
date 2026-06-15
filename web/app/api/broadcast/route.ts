@@ -1,11 +1,13 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { PSA_KEY, PSA_SUBJECT, psaHtml, sendBatch } from "@/lib/email";
+import { PSA_KEY, PSA_SEND_AT_ISO, PSA_SUBJECT, psaHtml, sendBatch } from "@/lib/email";
 
-// One-off PSA broadcast to EVERY signed-up email (minus opt-outs). Manual + admin-
-// gated + safe-by-default: a plain call is a DRY RUN (returns the recipient count,
-// sends nothing). Add ?send=1 to actually send; it's logged in email_reminders_log
-// so it can't double-send (override with ?force=1). Honors the same unsubscribe /
-// email_opt_out plumbing as the reminder cron.
+// One-off PSA broadcast to EVERY signed-up email (minus opt-outs). Admin/cron-gated
+// and safe by construction:
+//   • a single-date Vercel cron fires it at PSA_SEND_AT_ISO (8am PT, Jun 15);
+//   • the route refuses to send before that instant (so it can't go early);
+//   • it's logged in email_reminders_log so it can't double-send;
+//   • ?dry=1 previews (recipient count, sends nothing); ?force=1 overrides both gates.
+// Honors the same unsubscribe / email_opt_out plumbing as the reminder cron.
 
 function admin(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,8 +40,9 @@ export async function GET(req: Request) {
   }
 
   const params = new URL(req.url).searchParams;
-  const send = params.get("send") === "1";
+  const dry = params.get("dry") === "1";
   const force = params.get("force") === "1";
+  const due = force || Date.now() >= Date.parse(PSA_SEND_AT_ISO);
 
   const { data: log } = await sb
     .from("email_reminders_log")
@@ -50,15 +53,20 @@ export async function GET(req: Request) {
 
   const people = await recipients(sb);
 
-  if (!send) {
+  if (dry) {
     return Response.json({
       dryRun: true,
       subject: PSA_SUBJECT,
+      scheduledFor: PSA_SEND_AT_ISO,
+      due,
       recipients: people.length,
       sample: people.slice(0, 5).map((p) => p.email),
       alreadySent,
       emailConfigured: !!process.env.RESEND_API_KEY,
     });
+  }
+  if (!due) {
+    return Response.json({ scheduled: PSA_SEND_AT_ISO, note: "not due yet — not sending", recipients: people.length });
   }
   if (alreadySent && !force) {
     return Response.json({ skipped: true, reason: "already sent — add ?force=1 to resend", recipients: people.length });

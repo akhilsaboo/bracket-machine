@@ -65,9 +65,12 @@ export function reminderHtml(m: Milestone, userId: string): string {
   </div></body></html>`;
 }
 
-// ── One-off broadcast PSA (manual, admin-triggered) — "your picks aren't locked"
+// ── One-off broadcast PSA — "your picks aren't locked". Fired by a single-date
+// Vercel cron at this exact instant (8am Pacific / PDT = 15:00 UTC, Jun 15) and
+// gated on it server-side so it can't go early; idempotent so it can't double-send.
 export const PSA_KEY = "psa-picks-v1";
 export const PSA_SUBJECT = "Psst — your picks aren’t locked in yet";
+export const PSA_SEND_AT_ISO = "2026-06-15T15:00:00Z";
 
 export function psaHtml(userId: string): string {
   const unsub = unsubUrl(userId);
