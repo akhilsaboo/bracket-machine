@@ -17,8 +17,14 @@ import { PoolJoinHandler } from "@/components/PoolJoinHandler";
 import { BracketSwitcher } from "@/components/BracketSwitcher";
 import { PredictionsView } from "@/components/PredictionsView";
 import { GlobalLeaderboard } from "@/components/GlobalLeaderboard";
+import { ViewBracket } from "@/components/ViewBracket";
 
 type Tab = "group" | "schedule" | "bracket" | "awards" | "pools" | "leaderboard";
+interface Viewing {
+  bracketId: string;
+  name: string;
+  bracketName: string;
+}
 const TABS: { id: Tab; label: string }[] = [
   { id: "group", label: "Group Stage" },
   { id: "schedule", label: "Schedule" },
@@ -30,6 +36,9 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("group");
+  // When set, the main area is taken over by a read-only view of someone else's
+  // bracket (opened from the leaderboard). Clicking any top tab exits it.
+  const [viewing, setViewing] = useState<Viewing | null>(null);
   const { predictions, reset, hydrated, activeKind, isPreview, now, brackets, createBracket, switchBracket } =
     usePredictions();
   const [scDismissed, setScDismissed] = useState(false);
@@ -122,7 +131,10 @@ export default function Home() {
           {tabs.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                setViewing(null);
+                setTab(t.id);
+              }}
               className={`-mb-px rounded-t-lg px-4 py-2 text-sm font-semibold transition ${
                 effectiveTab === t.id
                   ? "bg-[var(--background)] text-[var(--wc-accent)]"
@@ -165,12 +177,30 @@ export default function Home() {
             </button>
           </div>
         )}
-        {effectiveTab === "group" && <GroupStageView onSubmitted={() => setTab("bracket")} />}
-        {effectiveTab === "schedule" && <ScheduleView />}
-        {effectiveTab === "bracket" && <BracketView onGoToPools={() => setTab("pools")} />}
-        {effectiveTab === "awards" && <PredictionsView />}
-        {effectiveTab === "pools" && <PoolsView onGoToGroupTab={() => setTab("group")} />}
-        {effectiveTab === "leaderboard" && <GlobalLeaderboard />}
+        {viewing ? (
+          <ViewBracket
+            bracketId={viewing.bracketId}
+            name={viewing.name}
+            bracketName={viewing.bracketName}
+            onClose={() => setViewing(null)}
+          />
+        ) : (
+          <>
+            {effectiveTab === "group" && <GroupStageView onSubmitted={() => setTab("bracket")} />}
+            {effectiveTab === "schedule" && <ScheduleView />}
+            {effectiveTab === "bracket" && <BracketView onGoToPools={() => setTab("pools")} />}
+            {effectiveTab === "awards" && <PredictionsView />}
+            {effectiveTab === "pools" && <PoolsView onGoToGroupTab={() => setTab("group")} />}
+            {effectiveTab === "leaderboard" && (
+              <GlobalLeaderboard
+                onViewBracket={(b) => {
+                  setViewing(b);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              />
+            )}
+          </>
+        )}
       </main>
 
       {pendingReset && (

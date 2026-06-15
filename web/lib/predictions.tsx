@@ -460,3 +460,46 @@ export function usePredictions(): PredictionContextValue {
   if (!ctx) throw new Error("usePredictions must be used within a PredictionProvider");
   return ctx;
 }
+
+/**
+ * Read-only override: render the normal prediction-driven views (GroupCard,
+ * BracketView, ScheduleView, …) against SOMEONE ELSE's picks, with every setter
+ * neutralized. It inherits the live clock / preview flag / sync plumbing from the
+ * real provider (so grading + results still work) and only swaps in the supplied
+ * (already lock-masked) data. Wrap the rendered views in `pointer-events-none` to
+ * make them visually read-only. Used by the "view as them" mode. */
+export function ReadOnlyPredictions({
+  predictions,
+  knockout,
+  tiebreakerGoals = null,
+  children,
+}: {
+  predictions: Predictions;
+  knockout: KnockoutWinners;
+  tiebreakerGoals?: number | null;
+  children: ReactNode;
+}) {
+  const real = usePredictions();
+  const noop = () => {};
+  const value: PredictionContextValue = {
+    ...real,
+    predictions,
+    knockout,
+    awards: {},
+    groupSubmitted: true,
+    bracketSubmitted: true,
+    tiebreakerGoals,
+    setScore: noop,
+    setManyScores: noop,
+    setKnockoutWinner: noop,
+    setManyKnockout: noop,
+    setAward: noop,
+    setGroupSubmitted: noop,
+    setBracketSubmitted: noop,
+    setTiebreakerGoals: noop,
+    setFillMode: noop,
+    replaceAll: noop,
+    reset: noop,
+  };
+  return <PredictionContext.Provider value={value}>{children}</PredictionContext.Provider>;
+}
