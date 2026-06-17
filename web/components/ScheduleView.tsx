@@ -10,13 +10,18 @@ function MatchLine({
   f,
   now,
   locked,
+  isPreview,
 }: {
   f: Fixture;
   now: Date;
   locked: boolean;
+  isPreview: boolean;
 }) {
-  const { groupResultFor } = useTournament(now, false);
+  // Same live-score wiring as the Group tab: real final result for grading + the
+  // in-progress score so live games show read-only here too.
+  const { groupResultFor, liveResultFor } = useTournament(now, isPreview);
   const result = groupResultFor(f);
+  const liveResult = liveResultFor(f);
   return (
     <div className="flex items-center gap-2 border-b border-slate-100 py-1 last:border-0 dark:border-slate-800">
       <div className="w-16 shrink-0 text-right">
@@ -26,14 +31,14 @@ function MatchLine({
         {f.city && <div className="truncate text-[9px] text-slate-400">{f.city}</div>}
       </div>
       <div className="flex-1">
-        <MatchRow fixture={f} showGroup locked={locked} result={result} />
+        <MatchRow fixture={f} showGroup locked={locked} result={result} liveResult={liveResult} />
       </div>
     </div>
   );
 }
 
 export function ScheduleView() {
-  const { now } = usePredictions();
+  const { now, isPreview } = usePredictions();
   const dated = hasSchedule(SCHEDULE);
 
   return (
@@ -43,12 +48,12 @@ export function ScheduleView() {
         flow straight into the standings and your bracket. Each pick locks once its match begins.
       </p>
 
-      {!dated ? <FallbackByMatchday /> : <DatedSchedule now={now} />}
+      {!dated ? <FallbackByMatchday /> : <DatedSchedule now={now} isPreview={isPreview} />}
     </div>
   );
 }
 
-function DatedSchedule({ now }: { now: Date }) {
+function DatedSchedule({ now, isPreview }: { now: Date; isPreview: boolean }) {
   const { days, over } = splitSchedule(SCHEDULE, now);
   return (
     <>
@@ -63,7 +68,7 @@ function DatedSchedule({ now }: { now: Date }) {
           </header>
           <div className="px-3 py-1">
             {day.fixtures.map((f) => (
-              <MatchLine key={f.id} f={f} now={now} locked={isLocked(f, now)} />
+              <MatchLine key={f.id} f={f} now={now} locked={isLocked(f, now)} isPreview={isPreview} />
             ))}
           </div>
         </section>
@@ -76,7 +81,7 @@ function DatedSchedule({ now }: { now: Date }) {
           </header>
           <div className="px-3 py-1">
             {over.map((f) => (
-              <MatchLine key={f.id} f={f} now={now} locked />
+              <MatchLine key={f.id} f={f} now={now} locked isPreview={isPreview} />
             ))}
           </div>
         </section>
