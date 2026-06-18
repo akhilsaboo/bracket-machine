@@ -211,8 +211,12 @@ export function recapHtml(d: RecapData): string {
   </div></body></html>`;
 }
 
-/** Send up to 100-per-call via Resend's batch endpoint — fast + within rate
- *  limits, so a whole-list broadcast finishes in one request. */
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Send via Resend's batch endpoint in chunks of ≤100 (the per-batch cap). Provider
+ *  rate-limits bursts, so we pause between batches and back off on 429 (honoring
+ *  Retry-After) — that way a list of >100 still fully sends, one ~100-email burst at
+ *  a time. */
 export async function sendBatch(
   emails: { to: string; subject: string; html: string }[],
 ): Promise<{ sent: number; failed: number }> {
@@ -221,19 +225,38 @@ export async function sendBatch(
   const from = process.env.REMINDER_FROM ?? "Bracket Machine <onboarding@resend.dev>";
   let sent = 0;
   let failed = 0;
-  for (let i = 0; i < emails.length; i += 100) {
-    const chunk = emails.slice(i, i + 100).map((e) => ({ from, to: e.to, subject: e.subject, html: e.html }));
-    try {
-      const r = await fetch(`${RESEND_URL}/batch`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-        body: JSON.stringify(chunk),
-      });
-      if (r.ok) sent += chunk.length;
-      else failed += chunk.length;
-    } catch {
-      failed += chunk.length;
+  const chunks: typeof emails[] = [];
+  for (let i = 0; i < emails.length; i += 100) chunks.push(emails.slice(i, i + 100));
+
+  for (let c = 0; c < chunks.length; c++) {
+    if (c > 0) await sleep(2000); // breathing room between ~100-email bursts
+    const chunk = chunks[c];
+    const body = JSON.stringify(chunk.map((e) => ({ from, to: e.to, subject: e.subject, html: e.html })));
+    let ok = 0;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const r = await fetch(`${RESEND_URL}/batch`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+          body,
+        });
+        if (r.ok) {
+          ok = chunk.length;
+          break;
+        }
+        if (r.status === 429) {
+          // Rate-limited burst — wait for it to reset, then retry the same chunk.
+          const ra = Number(r.headers.get("retry-after")) || 10;
+          await sleep(Math.min(ra, 30) * 1000);
+          continue;
+        }
+        break; // other error → don't hammer
+      } catch {
+        break;
+      }
     }
+    sent += ok;
+    failed += chunk.length - ok;
   }
   return { sent, failed };
 }
