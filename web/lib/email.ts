@@ -94,6 +94,123 @@ export function psaHtml(userId: string): string {
   </div></body></html>`;
 }
 
+// ── Personalized Matchday-1 recap broadcast ────────────────────────────────
+export const RECAP_KEY = "recap-md1-v1";
+export const RECAP_SEND_AT_ISO = "2026-06-18T15:00:00Z"; // 8am PDT, Jun 18
+
+export type RecapTier = "top" | "mid" | "low" | "empty";
+export interface RecapData {
+  userId: string;
+  firstName: string;
+  tier: RecapTier;
+  bracketName: string;
+  points: number;
+  rank: number;
+  total: number;
+  exact: number;
+  percentile: number;
+  pools: { name: string; rank: number; members: number }[];
+}
+
+function esc(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+}
+function ordinal(n: number): string {
+  const v = n % 100;
+  const s = v >= 11 && v <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th";
+  return `${n}${s}`;
+}
+
+export function recapSubject(d: RecapData): string {
+  return d.tier === "empty"
+    ? "Matchday 1’s done — your bracket’s still empty"
+    : `You’re #${d.rank} of ${d.total} — Matchday 1 recap`;
+}
+
+export function recapHtml(d: RecapData): string {
+  const unsub = unsubUrl(d.userId);
+  const P = (html: string, extra = "") =>
+    `<p style="font-size:15px;line-height:1.55;margin:0 0 16px;${extra}">${html}</p>`;
+
+  const headline =
+    d.tier === "empty"
+      ? "⚽ Your Matchday 1 recap"
+      : `${d.tier === "top" ? "🔥" : d.tier === "mid" ? "👀" : "💪"} You’re #${d.rank} of ${d.total}`;
+
+  const intro =
+    d.tier === "empty"
+      ? "Every team has played one group game, with two more to go before the knockouts. Looks like you haven’t gotten in the game yet, though."
+      : "Every team has played one group game, with two more to go before the knockouts. Here’s where you sit.";
+
+  const name = esc(d.bracketName) || "your bracket";
+  let standing: string;
+  if (d.tier === "top")
+    standing = `<strong>🔥 You’re crushing it.</strong> Your best bracket, <strong>${name}</strong>, is <strong>#${d.rank} of ${d.total}</strong> — the top <strong>${Math.max(1, 100 - d.percentile)}%</strong> of everyone playing. Whatever you’re doing, keep doing it.`;
+  else if (d.tier === "mid")
+    standing = `<strong>👀 Solid start.</strong> <strong>${name}</strong> sits <strong>#${d.rank} of ${d.total}</strong> — right in the hunt. A strong Matchday 2 and you’re knocking on the leaders’ door.`;
+  else if (d.tier === "low")
+    standing = `<strong>💪 Some ground to make up.</strong> <strong>${name}</strong> is <strong>#${d.rank} of ${d.total}</strong> — but Matchday 1 is just 1 of 7 rounds. There’s a whole tournament left to climb.`;
+  else
+    standing = `<strong>🫥 Your bracket’s sitting at 0 points</strong> with no picks locked in. Good news: the bulk of the tournament, and the points, is still ahead of you.`;
+
+  const stats =
+    d.tier === "empty"
+      ? ""
+      : P(
+          `📊 <strong>${d.points} pts</strong> · <strong>${d.exact}</strong> exact scoreline${d.exact === 1 ? "" : "s"} nailed · ${ordinal(d.percentile)} percentile.`,
+          "background:#f1f5f9;border-radius:10px;padding:10px 14px;font-size:14px",
+        );
+
+  const poolsBlock = d.pools.length
+    ? P(`<strong>🏆 Your pools</strong>`, "margin-bottom:6px") +
+      `<div style="font-size:15px;line-height:1.7;margin:0 0 16px">${d.pools
+        .map((p) => `• ${esc(p.name)} — <strong>#${p.rank} of ${p.members}</strong>${p.rank === 1 ? " 🥇" : ""}`)
+        .join("<br/>")}</div>`
+    : "";
+
+  const editable = "Every pick stays editable right up until that match kicks off.";
+  let advice: string;
+  if (d.tier === "top")
+    advice = "You’re flying near the top, so <strong>don’t change a thing</strong> — no need to restart what’s working. Just keep calling them.";
+  else if (d.tier === "mid")
+    advice = "You’ve got a good thing going, so keep building on it. (A fresh bracket’s always an option, but you’re well-positioned where you are.)";
+  else if (d.tier === "low")
+    advice = "<strong>Not happy with your bracket? A restart doesn’t put you back at square one — it drops you into the <em>now</em>.</strong> The real Matchday 1 results come pre-loaded, so your groups and knockout already reflect the actual tournament, with no more clinging to teams that already crashed out. You get an accurate bracket and a clean slate for Matchday 2 onward, where most of the points still live. <em>(You’ll start fresh at 0 — worth it when your current bracket’s hurting.)</em>";
+  else
+    advice = "Starting now, your bracket comes pre-loaded with the real Matchday 1 results, so you’re picking Matchday 2 onward from an accurate, up-to-date base. You’re not behind on the part that matters most — it’s all still to play for.";
+
+  const md2Heading =
+    d.tier === "low"
+      ? "Matchday 2 starts today — and here’s your edge:"
+      : d.tier === "empty"
+        ? "Matchday 2 starts today — perfect time to jump in:"
+        : "Matchday 2 starts today.";
+
+  const body =
+    P(`Hey ${esc(d.firstName)},`) +
+    P(intro) +
+    P(standing) +
+    stats +
+    poolsBlock +
+    P(`<strong>${md2Heading}</strong>`, "margin-bottom:6px") +
+    `<div style="font-size:15px;line-height:1.55;margin:0 0 20px">• ${editable}<br/><br/>• ${advice}</div>` +
+    `<a href="${APP_URL}" style="display:block;background:#db2777;color:#fff;text-decoration:none;text-align:center;font-weight:700;padding:14px;border-radius:10px;font-size:15px">Open Bracket Machine →</a>` +
+    P(`Good luck out there ⚽<br/>— Akhil, Bracket Machine`, "font-size:14px;margin:20px 0 0;color:#475569");
+
+  return `<!doctype html><html><body style="margin:0;background:#0f172a;font-family:Arial,Helvetica,sans-serif">
+  <div style="max-width:520px;margin:0 auto;padding:24px">
+    <div style="background:linear-gradient(135deg,#7c3aed,#db2777);border-radius:16px;padding:28px 24px;text-align:center;color:#fff">
+      <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;opacity:.9;font-weight:bold">Bracket Machine</div>
+      <div style="font-size:22px;font-weight:800;margin-top:8px">${headline}</div>
+    </div>
+    <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;color:#0f172a">${body}</div>
+    <p style="text-align:center;color:#64748b;font-size:11px;line-height:1.6;margin-top:18px">
+      You’re getting this because you signed up at bracketmachine.app.<br/>
+      <a href="${unsub}" style="color:#94a3b8">Unsubscribe</a>
+    </p>
+  </div></body></html>`;
+}
+
 /** Send up to 100-per-call via Resend's batch endpoint — fast + within rate
  *  limits, so a whole-list broadcast finishes in one request. */
 export async function sendBatch(
