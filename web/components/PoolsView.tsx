@@ -781,7 +781,8 @@ function PoolDetail({
           Knockout: points for each team you correctly pick to <strong>reach</strong> a round (R32 +20,
           R16 +40, QF +80, SF/3rd +160, Champion +320), regardless of opponent — plus{" "}
           <span className="font-bold text-emerald-600 dark:text-emerald-400">+10</span> for nailing its
-          exact bracket slot. Ties broken by KO points, then exact predictions, then tiebreaker total-goals.
+          exact bracket slot (only for teams whose group you called early — 2+ of their games before kickoff).
+          Ties broken by KO points, then exact predictions, then tiebreaker total-goals.
         </footer>
       </div>
 

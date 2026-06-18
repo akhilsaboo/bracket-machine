@@ -73,6 +73,26 @@ export function scoreBracket(
   return { points, graded, correct, exact, percent };
 }
 
+/** Teams a bracket has "earned" exact-bonus eligibility for: it locked a real
+ *  prediction for ≥2 of the team's 3 group games. You can only pick a group game
+ *  BEFORE it kicks off, so ≥2 means you called the team's group while it was still
+ *  genuinely live — not after the standings were already known. This gates the
+ *  structural exact-slot bonus so a late or restarted bracket (whose group results
+ *  are gap-filled from reality) can't bank slots it never actually risked. */
+export function exactEligibleTeams(predictions: Predictions, fixtures: Fixture[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const f of fixtures) {
+    if (!f.group) continue; // group-stage games only
+    const p = predictions[f.id];
+    if (!p || p.home === null || p.away === null) continue;
+    counts.set(f.home, (counts.get(f.home) ?? 0) + 1);
+    counts.set(f.away, (counts.get(f.away) ?? 0) + 1);
+  }
+  const eligible = new Set<string>();
+  for (const [team, n] of counts) if (n >= 2) eligible.add(team);
+  return eligible;
+}
+
 export interface KnockoutScore {
   points: number;
   r32: number;
@@ -161,14 +181,22 @@ export function scoreKnockout(
   predictions: Predictions,
   knockout: KnockoutWinners,
   truth: TournamentTruth,
+  eligibleExact?: Set<string> | null,
 ): KnockoutScore {
   const resolved = resolveKnockout(predictions, knockout);
   if (!resolved) return ZERO_KO;
-  return scoreResolvedKnockout(resolved, truth);
+  return scoreResolvedKnockout(resolved, truth, eligibleExact);
 }
 
-/** Core advancement + exact scoring over an already-resolved knockout map. */
-function scoreResolvedKnockout(resolved: Map<number, KOMatch>, truth: TournamentTruth): KnockoutScore {
+/** Core advancement + exact scoring over an already-resolved knockout map. The
+ *  exact-slot bonus is gated by `eligibleExact` (teams whose group you called
+ *  early); pass null/undefined to ungate it (e.g. second-chance, whose structure
+ *  is the REAL R32 and so can't be farmed). */
+function scoreResolvedKnockout(
+  resolved: Map<number, KOMatch>,
+  truth: TournamentTruth,
+  eligibleExact?: Set<string> | null,
+): KnockoutScore {
   const reachers = actualReachersByBucket(truth);
   const out: KnockoutScore = { ...ZERO_KO };
   for (const m of KO_MATCHES) {
@@ -180,7 +208,8 @@ function scoreResolvedKnockout(resolved: Map<number, KOMatch>, truth: Tournament
       out[b]++;
       out.points += KO_POINTS_PER_MATCH[m];
     }
-    if (truth.knockoutWinners[m] === myWinner) {
+    // Exact-slot bonus — only for teams the bracket earned eligibility for.
+    if (truth.knockoutWinners[m] === myWinner && (!eligibleExact || eligibleExact.has(myWinner))) {
       out.exact++;
       out.points += POINTS.koExactBonus;
     }
@@ -217,8 +246,12 @@ export function scoreEverything(
   // (real results fill matches a late joiner couldn't pick) so their KO picks
   // still resolve and score. For a full-bracket user, effective === their picks.
   const group = scoreBracket(predictions, fixtures, resultFor);
+  // Exact-bonus eligibility is computed from the RAW predictions (the user's own
+  // locked picks), NOT the gap-filled ones — so a bracket only earns exact slots
+  // for teams whose group it actually predicted (≥2 games) before kickoff.
+  const eligibleExact = exactEligibleTeams(predictions, fixtures);
   const ko = truth
-    ? scoreKnockout(withResults(predictions, truth.groupResults), knockout, truth)
+    ? scoreKnockout(withResults(predictions, truth.groupResults), knockout, truth, eligibleExact)
     : ZERO_KO;
   return { group, ko, total: group.points + ko.points };
 }

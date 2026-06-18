@@ -168,6 +168,26 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
         )
       )}
 
+      <div className="mx-auto max-w-2xl rounded-xl border border-[var(--wc-accent)]/30 bg-[var(--wc-accent)]/5 px-4 py-3 text-sm">
+        <p className="font-semibold text-slate-800 dark:text-slate-100">
+          🏆 You score whenever a team you picked <span className="underline decoration-[var(--wc-accent)] decoration-2 underline-offset-2">reaches a round</span> — no matter who they play or how they get there.
+        </p>
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+          The bracket lines just show one possible path — you&rsquo;re really picking <strong>which teams go how far</strong>.
+          {!isSecondChance && (
+            <span className="mt-1 block">
+              🎯 <strong>+10 exact-spot bonus</strong> for landing a team in its precise slot — but only for teams whose group you called early (2+ of their games before kickoff).
+            </span>
+          )}
+        </p>
+        <details className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <summary className="cursor-pointer select-none font-medium hover:text-[var(--wc-accent)]">Point values</summary>
+          <p className="mt-1">
+            Reach: Round of 32 <strong>+20</strong> · R16 <strong>+40</strong> · QF <strong>+80</strong> · SF <strong>+160</strong> · Champion <strong>+320</strong> — per team, opponent-agnostic.
+          </p>
+        </details>
+      </div>
+
       <BracketTree resolved={resolved} onPick={locked ? undefined : onPick} gradePick={gradePick} />
 
       {canSubmit && (
