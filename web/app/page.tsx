@@ -9,6 +9,15 @@ import { useTournament } from "@/lib/liveResults";
 
 const SC_BANNER_DISMISSED_KEY = "wc2026-sc-banner-dismissed";
 const RESET_CONFIRM_SKIP_KEY = "wc2026-skip-reset-confirm";
+
+// TEMP dev-only clock override so we can test locking/reset against different
+// moments in the tournament. Remove when done testing.
+const PREVIEW_PRESETS: { label: string; iso: string | null }[] = [
+  { label: "Live (real time)", iso: null },
+  { label: "Mid group stage", iso: "2026-06-18T12:00:00Z" },
+  { label: "Knockout started", iso: "2026-06-29T00:00:00Z" },
+  { label: "After final", iso: "2026-07-20T00:00:00Z" },
+];
 import { GroupStageView } from "@/components/GroupStageView";
 import { ScheduleView } from "@/components/ScheduleView";
 import { BracketView } from "@/components/BracketView";
@@ -43,9 +52,11 @@ export default function Home() {
   // When set, the main area is taken over by a read-only view of someone else's
   // bracket (opened from the leaderboard). Clicking any top tab exits it.
   const [viewing, setViewing] = useState<Viewing | null>(null);
-  const { predictions, knockout, reset, hydrated, activeKind, isPreview, now, brackets, createBracket, switchBracket } =
+  const { predictions, knockout, reset, hydrated, activeKind, isPreview, now, brackets, createBracket, switchBracket, setPreviewNow } =
     usePredictions();
   const [scDismissed, setScDismissed] = useState(false);
+  // TEMP dev clock override selection. Remove with the selector below.
+  const [previewSel, setPreviewSel] = useState("");
   useEffect(() => {
     setScDismissed(localStorage.getItem(SC_BANNER_DISMISSED_KEY) === "1");
   }, []);
@@ -143,6 +154,24 @@ export default function Home() {
               {hydrated ? `${picksMade}/${picksTotal} picks` : "…"}
             </span>
             <BracketSwitcher />
+            {/* TEMP dev clock override — localhost only, excluded from prod builds. */}
+            {process.env.NODE_ENV === "development" && (
+              <select
+                title="Preview the app at a different moment (dev only)"
+                value={previewSel}
+                onChange={(e) => {
+                  setPreviewSel(e.target.value);
+                  setPreviewNow(e.target.value || null);
+                }}
+                className="rounded-full bg-white/15 px-2 py-1 text-xs font-medium text-white [&>option]:text-slate-800"
+              >
+                {PREVIEW_PRESETS.map((p) => (
+                  <option key={p.label} value={p.iso ?? ""}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               onClick={handleReset}
               className="rounded-full bg-white/15 px-3 py-1 font-medium transition hover:bg-white/25"
@@ -244,8 +273,8 @@ export default function Home() {
           >
             <div className="text-base font-bold">Reset this bracket?</div>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              This clears all your score picks and knockout selections for the active bracket. This
-              can&apos;t be undone.
+              This clears your picks for games that haven&apos;t kicked off yet. Picks for matches
+              that have already started or finished stay put. This can&apos;t be undone.
             </p>
             <label className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <input type="checkbox" checked={dontAskReset} onChange={(e) => setDontAskReset(e.target.checked)} />

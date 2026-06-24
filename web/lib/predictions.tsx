@@ -12,6 +12,9 @@ import {
 import { applyResetEpoch } from "@/lib/resetEpoch";
 import { pickProgress } from "@/lib/compute";
 import { getTombstones } from "@/lib/tombstones";
+import { SCHEDULE } from "@/lib/data";
+import { isLocked } from "@/lib/schedule";
+import { isKnockoutStarted, tournamentHasStarted } from "@/lib/results";
 
 export interface Score {
   home: number | null;
@@ -130,6 +133,37 @@ const emptyState = (): BracketState => ({
   fillMode: null,
 });
 
+// Map a group fixture id → its fixture, so a reset can tell which group picks
+// have already locked (kickoff passed) and must be preserved.
+const FIXTURE_BY_ID: Record<string, (typeof SCHEDULE)[number]> = Object.fromEntries(
+  SCHEDULE.map((f) => [f.id, f]),
+);
+
+/** Reset that only clears picks the user can still change. Picks that have locked
+ *  — group scorelines whose match has kicked off, and (once the knockout cliff /
+ *  tournament start passes) the knockout bracket, awards, and tiebreaker — survive,
+ *  so a reset never wipes games that have already happened or been scored. */
+const resetState = (s: BracketState, now: Date, kind: BracketKind): BracketState => {
+  const predictions: Predictions = {};
+  for (const [id, score] of Object.entries(s.predictions)) {
+    const f = FIXTURE_BY_ID[id];
+    if (f && isLocked(f, now)) predictions[id] = score; // already kicked off → keep
+  }
+  // Second-chance brackets stay editable through the knockout cliff, so their
+  // knockout picks are never "locked" by the calendar.
+  const knockoutLocked = kind !== "second_chance" && isKnockoutStarted(now);
+  const awardsLocked = tournamentHasStarted(now);
+  return {
+    predictions,
+    knockout: knockoutLocked ? { ...s.knockout } : {},
+    awards: awardsLocked ? { ...s.awards } : {},
+    groupSubmitted: false,
+    bracketSubmitted: knockoutLocked ? s.bracketSubmitted : false,
+    tiebreakerGoals: awardsLocked ? s.tiebreakerGoals : null,
+    fillMode: null,
+  };
+};
+
 const cloneState = (s: BracketState): BracketState => ({
   predictions: { ...s.predictions },
   knockout: { ...s.knockout },
@@ -170,6 +204,10 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     storeRef.current = store;
   });
+
+  // Always-fresh clock for stable callbacks (e.g. reset, which must know which
+  // picks have locked). Kept in sync with the `now` derived below each render.
+  const nowRef = useRef<Date>(new Date());
 
   // Tick real time every minute so matches lock/move on their own during play.
   useEffect(() => {
@@ -315,7 +353,10 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
     [mutateActive],
   );
   const replaceAll = useCallback((state: BracketState) => mutateActive(() => state), [mutateActive]);
-  const reset = useCallback(() => mutateActive(() => emptyState()), [mutateActive]);
+  const reset = useCallback(() => {
+    const kind = storeRef.current.records[storeRef.current.activeId]?.kind ?? "normal";
+    mutateActive((s) => resetState(s, nowRef.current, kind));
+  }, [mutateActive]);
 
   // --- bracket management ---
   const switchBracket = useCallback((id: string) => {
@@ -396,6 +437,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
   const active = store.records[store.activeId] ?? store.records[store.order[0]];
   const activeState = active?.state ?? emptyState();
   const now = previewISO ? new Date(previewISO) : new Date(nowMs);
+  nowRef.current = now;
   const brackets: BracketSummary[] = store.order
     .map((id) => store.records[id])
     .filter(Boolean)
