@@ -59,7 +59,11 @@ export async function GET(req: Request) {
   const provided = req.headers.get("authorization");
   const authed =
     (!!process.env.CRON_SECRET && provided === `Bearer ${process.env.CRON_SECRET}`) ||
-    (!!process.env.ADMIN_SECRET && provided === `Bearer ${process.env.ADMIN_SECRET}`);
+    (!!process.env.ADMIN_SECRET && provided === `Bearer ${process.env.ADMIN_SECRET}`) ||
+    // Dedicated one-off token for the scheduled cloud-agent send (this route only).
+    // Idempotent without ?force, so even if leaked it can trigger at most one send.
+    // Safe to delete the BROADCAST_FIRE_TOKEN env var after the email has gone out.
+    (!!process.env.BROADCAST_FIRE_TOKEN && provided === `Bearer ${process.env.BROADCAST_FIRE_TOKEN}`);
   if (!authed) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const params = new URL(req.url).searchParams;
