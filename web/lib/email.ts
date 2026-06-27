@@ -296,6 +296,73 @@ export function groupFinalHtml(d: RecapData): string {
   </div></body></html>`;
 }
 
+// ── Second-chance bracket promo (ESPN-style "need another chance?") ─────────
+// Uniform promo to every signed-up email (first-name greeting only — no standings,
+// so it can send the moment the group stage settles). Pitches all our features:
+// real-R32 seed, Double-or-Nothing, the global second-chance leaderboard, + pools.
+// Sent the evening the group stage ends, before the R32 lockout.
+export const SECONDCHANCE_KEY = "secondchance-v1";
+export const SECONDCHANCE_SEND_AT_ISO = "2026-06-28T02:00:00Z"; // ~7pm PT, Jun 27
+
+export function secondChanceSubject(): string {
+  return "Bracket busted? You’ve got a second chance 🔄";
+}
+
+export function secondChanceHtml(firstName: string, userId: string): string {
+  const unsub = unsubUrl(userId);
+  const P = (html: string, extra = "") =>
+    `<p style="font-size:15px;line-height:1.55;margin:0 0 16px;${extra}">${html}</p>`;
+  const FEATURE = (emoji: string, title: string, text: string, tag = "") =>
+    `<div style="margin:0 0 16px;padding:14px 16px;background:#f8fafc;border-radius:12px">` +
+    `<div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:4px">${emoji} ${title}` +
+    (tag ? ` <span style="font-size:10px;font-weight:800;color:#fff;background:#db2777;border-radius:6px;padding:2px 6px;vertical-align:middle">${tag}</span>` : "") +
+    `</div><div style="font-size:14px;line-height:1.5;color:#334155">${text}</div></div>`;
+
+  const KO_LOCK = "Sunday, June 28 · 12 PM PT (3 PM ET)";
+
+  const body =
+    P(`Hey ${esc(firstName)},`) +
+    P(
+      "The group stage is done and your original bracket is locked in for good. Didn’t go your way? <strong>You’re not out of it.</strong> Here’s a clean slate for the entire knockout run:",
+    ) +
+    FEATURE(
+      "🔄",
+      "A Second-Chance bracket",
+      "It starts from the <strong>real Round of 32</strong> — the actual 32 teams that made it through — and you pick every winner from there to the Champion. No group stage, pure knockout. Everyone starts level.",
+    ) +
+    FEATURE(
+      "⚡",
+      "Double or Nothing",
+      "Once per round, stake a single pick: nail it and that round’s points <strong>double</strong> — miss it and you <strong>lose</strong> them. Feeling sure about an upset? Ride it. Rather play safe? Stake nothing. Your call, every round.",
+      "NEW",
+    ) +
+    FEATURE(
+      "🏆",
+      "Two ways to compete",
+      "Climb the brand-new <strong>global Second-Chance leaderboard</strong> against every other player — no friends required — or spin up a <strong>pool</strong> and run a knockout league with your group chat.",
+      "NEW",
+    ) +
+    P(
+      `⏱️ <strong>Heads up — there’s no real gap.</strong> Second-Chance brackets lock the moment the Round of 32 kicks off: <strong>${KO_LOCK}</strong>. Build yours now; you can keep tweaking each round right up to its kickoff, and you only ever miss games already played.`,
+      "background:#fff7ed;border-radius:10px;padding:12px 14px;font-size:14px",
+    ) +
+    `<a href="${APP_URL}" style="display:block;background:#db2777;color:#fff;text-decoration:none;text-align:center;font-weight:700;padding:14px;border-radius:10px;font-size:15px">Build your Second-Chance bracket →</a>` +
+    P(`Back in it ⚽<br/>— Akhil, Bracket Machine`, "font-size:14px;margin:20px 0 0;color:#475569");
+
+  return `<!doctype html><html><body style="margin:0;background:#0f172a;font-family:Arial,Helvetica,sans-serif">
+  <div style="max-width:520px;margin:0 auto;padding:24px">
+    <div style="background:linear-gradient(135deg,#7c3aed,#db2777);border-radius:16px;padding:28px 24px;text-align:center;color:#fff">
+      <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;opacity:.9;font-weight:bold">Bracket Machine</div>
+      <div style="font-size:22px;font-weight:800;margin-top:8px">Need another shot at it?</div>
+    </div>
+    <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;color:#0f172a">${body}</div>
+    <p style="text-align:center;color:#64748b;font-size:11px;line-height:1.6;margin-top:18px">
+      You’re getting this because you signed up at bracketmachine.app.<br/>
+      <a href="${unsub}" style="color:#94a3b8">Unsubscribe</a>
+    </p>
+  </div></body></html>`;
+}
+
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Send via Resend's batch endpoint in chunks of ≤100 (the per-batch cap). Provider
