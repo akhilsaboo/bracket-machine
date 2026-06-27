@@ -211,6 +211,91 @@ export function recapHtml(d: RecapData): string {
   </div></body></html>`;
 }
 
+// ── "Last day of the group stage" broadcast ───────────────────────────────
+// Personalized standings (rank/points/pools, same source as the recap) PLUS the
+// hard lock times: group picks lock per-match as today's final games kick off, and
+// the whole knockout bracket freezes when the Round of 32 begins. Reuses RecapData
+// + the leaderboard snapshot; cron-fired on the final group-stage morning.
+export const GROUPFINAL_KEY = "groupfinal-v1";
+export const GROUPFINAL_SEND_AT_ISO = "2026-06-27T15:00:00Z"; // 8am PDT, Jun 27
+
+// The knockout bracket locks at the first Round-of-32 kickoff — KNOCKOUT_START_ISO
+// (lib/results) = 2026-06-28T19:00Z = noon PT / 3pm ET. Spelled out for the email.
+const KO_LOCK_LABEL = "Sunday, June 28 · 12 PM PT (3 PM ET)";
+
+export function groupFinalSubject(d: RecapData): string {
+  return d.tier === "empty"
+    ? "Last day of the group stage — get your bracket in"
+    : `Last call: you’re #${d.rank} of ${d.total} — your bracket locks tomorrow`;
+}
+
+export function groupFinalHtml(d: RecapData): string {
+  const unsub = unsubUrl(d.userId);
+  const P = (html: string, extra = "") =>
+    `<p style="font-size:15px;line-height:1.55;margin:0 0 16px;${extra}">${html}</p>`;
+
+  const headline =
+    d.tier === "empty"
+      ? "⚽ Last day of the group stage"
+      : `${d.tier === "top" ? "🔥" : d.tier === "mid" ? "👀" : "💪"} Last call — you’re #${d.rank} of ${d.total}`;
+
+  const name = esc(d.bracketName) || "your bracket";
+  let standing: string;
+  if (d.tier === "top")
+    standing = `<strong>🔥 You’re near the top.</strong> Your best bracket, <strong>${name}</strong>, is <strong>#${d.rank} of ${d.total}</strong> — the top <strong>${Math.max(1, 100 - d.percentile)}%</strong>. Heading into the knockouts, don’t touch a thing.`;
+  else if (d.tier === "mid")
+    standing = `<strong>👀 You’re in the hunt.</strong> <strong>${name}</strong> sits <strong>#${d.rank} of ${d.total}</strong>. One last look before the group stage locks — then it’s all knockouts.`;
+  else if (d.tier === "low")
+    standing = `<strong>💪 Ground to make up.</strong> <strong>${name}</strong> is <strong>#${d.rank} of ${d.total}</strong> — but the knockouts are where most of the points live, and your bracket there isn’t locked yet.`;
+  else
+    standing = `<strong>🫥 Your bracket’s still empty</strong> at 0 points. The group games are wrapping up, but you can still pick the <strong>entire knockout bracket</strong> before it locks — that’s the bulk of the points, all still up for grabs.`;
+
+  const stats =
+    d.tier === "empty"
+      ? ""
+      : P(
+          `📊 <strong>${d.points} pts</strong> · <strong>${d.exact}</strong> exact scoreline${d.exact === 1 ? "" : "s"} nailed · ${ordinal(d.percentile)} percentile.`,
+          "background:#f1f5f9;border-radius:10px;padding:10px 14px;font-size:14px",
+        );
+
+  const poolsBlock = d.pools.length
+    ? P(`<strong>🏆 Your pools</strong>`, "margin-bottom:6px") +
+      `<div style="font-size:15px;line-height:1.7;margin:0 0 16px">${d.pools
+        .map((p) => `• ${esc(p.name)} — <strong>#${p.rank} of ${p.members}</strong>${p.rank === 1 ? " 🥇" : ""}`)
+        .join("<br/>")}</div>`
+    : "";
+
+  const locks =
+    P(`<strong>⏰ This is your last chance to change anything:</strong>`, "margin-bottom:6px") +
+    `<div style="font-size:15px;line-height:1.55;margin:0 0 20px">` +
+    `• <strong>Group picks</strong> lock as each of today’s final games kicks off — set your last scorelines now.<br/><br/>` +
+    `• <strong>Your whole knockout bracket</strong> (Round of 32 → Champion) locks when the knockouts begin: <strong>${KO_LOCK_LABEL}</strong>. After that it’s frozen for the rest of the tournament.` +
+    `</div>`;
+
+  const body =
+    P(`Hey ${esc(d.firstName)},`) +
+    P("The final group games kick off today — the group stage is almost done, and the knockouts start tomorrow with no real gap in between.") +
+    P(standing) +
+    stats +
+    poolsBlock +
+    locks +
+    `<a href="${APP_URL}" style="display:block;background:#db2777;color:#fff;text-decoration:none;text-align:center;font-weight:700;padding:14px;border-radius:10px;font-size:15px">Lock in your bracket →</a>` +
+    P(`Good luck out there ⚽<br/>— Akhil, Bracket Machine`, "font-size:14px;margin:20px 0 0;color:#475569");
+
+  return `<!doctype html><html><body style="margin:0;background:#0f172a;font-family:Arial,Helvetica,sans-serif">
+  <div style="max-width:520px;margin:0 auto;padding:24px">
+    <div style="background:linear-gradient(135deg,#7c3aed,#db2777);border-radius:16px;padding:28px 24px;text-align:center;color:#fff">
+      <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;opacity:.9;font-weight:bold">Bracket Machine</div>
+      <div style="font-size:22px;font-weight:800;margin-top:8px">${headline}</div>
+    </div>
+    <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;color:#0f172a">${body}</div>
+    <p style="text-align:center;color:#64748b;font-size:11px;line-height:1.6;margin-top:18px">
+      You’re getting this because you signed up at bracketmachine.app.<br/>
+      <a href="${unsub}" style="color:#94a3b8">Unsubscribe</a>
+    </p>
+  </div></body></html>`;
+}
+
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Send via Resend's batch endpoint in chunks of ≤100 (the per-batch cap). Provider
