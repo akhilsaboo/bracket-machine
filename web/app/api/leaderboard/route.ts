@@ -1,8 +1,17 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SCHEDULE, type Fixture } from "@/lib/data";
-import { scoreEverything } from "@/lib/scoring";
+import { scoreEverything, scoreSecondChance, type Boosts } from "@/lib/scoring";
+import { allGroupsComplete, round32, type ResolvedFixture } from "@/lib/compute";
 import type { GroupResult, TournamentTruth } from "@/lib/results";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
+
+// Two global boards share this route: the main "global" board (normal brackets,
+// full group+KO scoring) and the "global_sc" board (second-chance brackets,
+// knockout-only, scored from the real R32 + Double-or-Nothing stakes). Pick with
+// ?board=sc; each gets its own cached snapshot row.
+type Board = "global" | "sc";
+const SNAPSHOT_KEY: Record<Board, string> = { global: "global", sc: "global_sc" };
+const BRACKET_KIND: Record<Board, string> = { global: "normal", sc: "second_chance" };
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,8 +59,9 @@ function admin(): SupabaseClient | null {
   return url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
 }
 
-// Best-effort, per-instance guard so one server doesn't run several scans at once.
-let computing = false;
+// Best-effort, per-instance guard so one server doesn't run several scans of the
+// same board at once.
+const computing = new Set<Board>();
 
 async function fetchTruth(origin: string): Promise<TournamentTruth | null> {
   try {
@@ -73,18 +83,20 @@ interface BracketRow {
   name: string;
   predictions: Predictions;
   knockout: KnockoutWinners;
+  boosts?: Boosts | null;
 }
 
-/** Page through every normal-kind bracket. Each bracket is its own leaderboard
- *  entry — a user with several brackets appears multiple times (ESPN-style).
- *  Includes unsubmitted "predict as you go" brackets; empty ones score 0. */
-async function readAllEntries(sb: SupabaseClient): Promise<BracketRow[]> {
+/** Page through every bracket of the given kind. Each bracket is its own
+ *  leaderboard entry — a user with several brackets appears multiple times
+ *  (ESPN-style). Includes unsubmitted "predict as you go" brackets; empty ones
+ *  score 0. `boosts` is read for the second-chance board's Double-or-Nothing. */
+async function readAllEntries(sb: SupabaseClient, kind: string): Promise<BracketRow[]> {
   const out: BracketRow[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await sb
       .from("brackets")
-      .select("id, user_id, name, predictions, knockout")
-      .eq("kind", "normal")
+      .select("id, user_id, name, predictions, knockout, boosts")
+      .eq("kind", kind)
       .is("deleted_at", null)
       // Every (non-deleted) normal bracket is an entry — incl. unsubmitted "predict
       // as you go" brackets people compete with in pools. Empty drafts score 0.
@@ -110,24 +122,42 @@ async function readNames(sb: SupabaseClient, ids: string[]): Promise<Map<string,
   return names;
 }
 
-async function compute(sb: SupabaseClient, origin: string): Promise<Snapshot> {
+/** The REAL Round of 32 from the live group truth — same derivation the client's
+ *  live feed uses (round32 over the actual group scorelines). Null until all 12
+ *  groups are decided. Seeds second-chance scoring. */
+function realR32(truth: TournamentTruth): ResolvedFixture[] | null {
+  const preds: Predictions = {};
+  for (const [id, r] of Object.entries(truth.groupResults)) {
+    preds[id] = { home: r.homeGoals, away: r.awayGoals };
+  }
+  return allGroupsComplete(preds) ? round32(preds) : null;
+}
+
+async function compute(sb: SupabaseClient, origin: string, board: Board): Promise<Snapshot> {
   const truth = await fetchTruth(origin);
+  const kind = BRACKET_KIND[board];
+
+  // Second-chance entries only score once the real R32 exists AND knockout games
+  // have started; the main board scores as soon as any real result is in.
+  const r32 = board === "sc" && truth ? realR32(truth) : null;
   const hasResults =
-    !!truth &&
-    (Object.keys(truth.groupResults).length > 0 || Object.keys(truth.knockoutWinners).length > 0);
+    board === "sc"
+      ? !!truth && !!r32 && Object.keys(truth.knockoutWinners).length > 0
+      : !!truth &&
+        (Object.keys(truth.groupResults).length > 0 || Object.keys(truth.knockoutWinners).length > 0);
 
   // Cheap "how many have entered" count — never pulls bracket bodies.
   const { count } = await sb
     .from("brackets")
     .select("user_id", { count: "exact", head: true })
-    .eq("kind", "normal")
+    .eq("kind", kind)
     .is("deleted_at", null);
 
   if (!truth || !hasResults) {
     return { rows: [], totalEntries: count ?? 0, hasResults: false, updatedAt: new Date().toISOString(), scores: [] };
   }
 
-  const entries = await readAllEntries(sb);
+  const entries = await readAllEntries(sb, kind);
   const fixtures: Fixture[] = SCHEDULE;
   const resultFor = (f: Fixture): GroupResult | null => truth.groupResults[f.id] ?? null;
 
@@ -135,6 +165,20 @@ async function compute(sb: SupabaseClient, origin: string): Promise<Snapshot> {
   // their own entry on the board.
   const names = await readNames(sb, [...new Set(entries.map((e) => e.user_id))]);
   const scored = entries.map((b) => {
+    if (board === "sc") {
+      // Knockout-only, resolved from the real R32, Double-or-Nothing applied.
+      const s = scoreSecondChance(b.knockout, r32, truth, b.boosts);
+      return {
+        user_id: b.user_id,
+        bracket_id: b.id,
+        display_name: names.get(b.user_id) ?? "Anonymous",
+        bracket_name: b.name || "Second Chance",
+        points: s.points,
+        group: 0,
+        ko: s.points,
+        exact: s.exact,
+      };
+    }
     const s = scoreEverything(b.predictions, b.knockout, fixtures, resultFor, truth);
     return {
       user_id: b.user_id,
@@ -168,17 +212,20 @@ export async function GET(req: Request) {
   if (!sb) {
     return Response.json({ error: "SUPABASE_SERVICE_ROLE_KEY not set" }, { status: 500 });
   }
-  const origin = new URL(req.url).origin;
+  const url = new URL(req.url);
+  const origin = url.origin;
+  const board: Board = url.searchParams.get("board") === "sc" ? "sc" : "global";
+  const snapshotKey = SNAPSHOT_KEY[board];
   const adminSecret = process.env.ADMIN_SECRET || process.env.CRON_SECRET;
   const force =
-    new URL(req.url).searchParams.get("force") === "1" &&
+    url.searchParams.get("force") === "1" &&
     !!adminSecret &&
     req.headers.get("authorization") === `Bearer ${adminSecret}`;
 
   const { data: snapRow } = await sb
     .from("leaderboard_snapshot")
     .select("payload, updated_at")
-    .eq("key", "global")
+    .eq("key", snapshotKey)
     .maybeSingle();
   const cached = (snapRow?.payload as Snapshot | undefined) ?? null;
   const ageMs = snapRow ? Date.now() - new Date(snapRow.updated_at as string).getTime() : Infinity;
@@ -186,22 +233,23 @@ export async function GET(req: Request) {
   if (!force && cached && ageMs < STALE_MS) {
     return Response.json(cached, { headers: { "cache-control": "no-store" } });
   }
-  // Another request on this instance is already recomputing — serve what we have.
-  if (computing && cached) {
+  // Another request on this instance is already recomputing this board — serve
+  // what we have.
+  if (computing.has(board) && cached) {
     return Response.json(cached, { headers: { "cache-control": "no-store" } });
   }
 
-  computing = true;
+  computing.add(board);
   try {
-    const snap = await compute(sb, origin);
+    const snap = await compute(sb, origin, board);
     await sb
       .from("leaderboard_snapshot")
-      .upsert({ key: "global", payload: snap, updated_at: snap.updatedAt }, { onConflict: "key" });
+      .upsert({ key: snapshotKey, payload: snap, updated_at: snap.updatedAt }, { onConflict: "key" });
     return Response.json(snap, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     if (cached) return Response.json(cached, { headers: { "cache-control": "no-store" } });
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   } finally {
-    computing = false;
+    computing.delete(board);
   }
 }

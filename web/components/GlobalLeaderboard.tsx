@@ -33,9 +33,11 @@ export function GlobalLeaderboard({
   onViewBracket?: (b: { bracketId: string; userId: string; name: string; bracketName: string }) => void;
 } = {}) {
   const { user } = useAuth();
+  const [board, setBoard] = useState<"global" | "sc">("global");
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isSC = board === "sc";
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Refs to each of MY entry rows, keyed by bracket_id. A Map preserves insertion
   // (= rank) order, so "Jump to me" can step through my brackets best→worst.
@@ -58,7 +60,12 @@ export function GlobalLeaderboard({
 
   useEffect(() => {
     let on = true;
-    fetch("/api/leaderboard")
+    setLoading(true);
+    setError(null);
+    setSnap(null);
+    setJumpIdx(0);
+    myRefs.current.clear();
+    fetch(`/api/leaderboard${board === "sc" ? "?board=sc" : ""}`)
       .then((r) => (r.ok ? (r.json() as Promise<Snapshot>) : Promise.reject(new Error(`Error ${r.status}`))))
       .then((d) => on && setSnap(d))
       .catch((e) => on && setError(e.message))
@@ -66,33 +73,60 @@ export function GlobalLeaderboard({
     return () => {
       on = false;
     };
-  }, []);
+  }, [board]);
 
-  if (loading) return <p className="py-12 text-center text-sm text-slate-400">Loading leaderboard…</p>;
-  if (error) return <p className="py-12 text-center text-sm text-red-500">Couldn’t load the leaderboard.</p>;
-  if (!snap) return null;
+  const Toggle = (
+    <div className="inline-flex rounded-full border border-slate-200 bg-slate-100 p-0.5 text-xs font-semibold dark:border-slate-700 dark:bg-slate-800">
+      {(
+        [
+          ["global", "Overall"],
+          ["sc", "🔄 Second Chance"],
+        ] as const
+      ).map(([id, label]) => (
+        <button
+          key={id}
+          onClick={() => setBoard(id)}
+          className={`rounded-full px-3 py-1 transition ${
+            board === id
+              ? "bg-white text-[var(--wc-accent,#7c3aed)] shadow-sm dark:bg-slate-900"
+              : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">🌍 Global leaderboard</h2>
-          <p className="text-xs text-slate-500">Every submitted bracket, ranked against the real results.</p>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            {isSC ? "🔄 Second-chance leaderboard" : "🌍 Global leaderboard"}
+          </h2>
+          <p className="text-xs text-slate-500">
+            {isSC
+              ? "Every second-chance bracket, ranked on knockout points (incl. Double-or-Nothing)."
+              : "Every submitted bracket, ranked against the real results."}
+          </p>
         </div>
-        {snap.hasResults && (
-          <span className="text-[10px] text-slate-400">
-            Updated {new Date(snap.updatedAt).toLocaleTimeString()}
-          </span>
-        )}
+        {Toggle}
       </div>
 
-      {!snap.hasResults ? (
+      {loading ? (
+        <p className="py-12 text-center text-sm text-slate-400">Loading leaderboard…</p>
+      ) : error ? (
+        <p className="py-12 text-center text-sm text-red-500">Couldn’t load the leaderboard.</p>
+      ) : !snap ? null : !snap.hasResults ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            The tournament hasn’t kicked off yet.
+            {isSC ? "Second-chance scoring hasn’t started yet." : "The tournament hasn’t kicked off yet."}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Rankings appear here once real results start coming in.
+            {isSC
+              ? "Build a second-chance bracket now — it ranks here once the Round of 32 kicks off."
+              : "Rankings appear here once real results start coming in."}
           </p>
         </div>
       ) : (
@@ -104,9 +138,9 @@ export function GlobalLeaderboard({
                 <tr>
                   <th className="px-3 py-2 text-left">#</th>
                   <th className="px-3 py-2 text-left">Entry</th>
-                  <th className="hidden px-3 py-2 text-right sm:table-cell">Group</th>
-                  <th className="hidden px-3 py-2 text-right sm:table-cell">KO</th>
-                  <th className="px-3 py-2 text-right">Total</th>
+                  {!isSC && <th className="hidden px-3 py-2 text-right sm:table-cell">Group</th>}
+                  {!isSC && <th className="hidden px-3 py-2 text-right sm:table-cell">KO</th>}
+                  <th className="px-3 py-2 text-right">{isSC ? "Pts" : "Total"}</th>
                   <th
                     className="px-3 py-2 text-right"
                     title="Percentile — the share of all brackets worldwide your score beats (ESPN-style). The leader tops out at 99%; nobody hits a perfect 100%."
@@ -151,8 +185,12 @@ export function GlobalLeaderboard({
                           <span className="text-xs text-slate-400">{r.bracket_name}</span>
                         </div>
                       </td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.group}</td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.ko}</td>
+                      {!isSC && (
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.group}</td>
+                      )}
+                      {!isSC && (
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.ko}</td>
+                      )}
                       <td className="px-3 py-2 text-right font-bold tabular-nums">{r.points}</td>
                       <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--wc-accent,#7c3aed)]">
                         {snap.scores?.length ? `${percentileOf(snap.scores, r.points)}%` : "—"}
