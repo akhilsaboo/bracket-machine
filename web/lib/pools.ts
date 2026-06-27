@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
+import type { Boosts } from "@/lib/scoring";
 
 export interface Pool {
   id: string;
@@ -23,6 +24,7 @@ export interface MemberBracket {
   user_id: string;
   predictions: Predictions;
   knockout: KnockoutWinners;
+  boosts?: Boosts | null; // Double-or-Nothing stakes (second-chance brackets)
   submitted_at: string | null;
   tiebreaker_total_goals: number | null;
   kind?: string; // 'normal' | 'second_chance'
@@ -187,7 +189,7 @@ export async function getBracketsByIds(
   if (ids.length === 0) return [];
   const { data, error } = await sb
     .from("brackets")
-    .select("id, user_id, predictions, knockout, submitted_at, tiebreaker_total_goals, kind")
+    .select("id, user_id, predictions, knockout, boosts, submitted_at, tiebreaker_total_goals, kind")
     .in("id", ids)
     .is("deleted_at", null);
   if (error) {

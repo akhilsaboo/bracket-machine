@@ -476,7 +476,7 @@ function PoolDetail({
       .filter((m) => m.sc_bracket_id)
       .map((m) => {
         const b = scByUser.get(m.user_id);
-        const score = b ? scoreSecondChance(b.knockout, round32, truth) : null;
+        const score = b ? scoreSecondChance(b.knockout, round32, truth, b.boosts) : null;
         return {
           user_id: m.user_id,
           display_name: m.display_name ?? "Anonymous",

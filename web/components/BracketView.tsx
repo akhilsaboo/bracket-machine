@@ -18,6 +18,8 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
     predictions,
     knockout,
     setKnockoutWinner,
+    boosts,
+    setBoost,
     bracketSubmitted,
     setBracketSubmitted,
     tiebreakerGoals,
@@ -82,6 +84,9 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
   const gradePick = truth ? knockoutGrader(truth) : undefined;
 
   const champ = champion(resolved);
+  // Double-or-Nothing is a second-chance-only mechanic. A stake can't be newly set
+  // on a match whose real result is already in (truth.knockoutWinners has it).
+  const stakeDecided = new Set(truth ? Object.keys(truth.knockoutWinners).map(Number) : []);
   const thirds = isSecondChance ? [] : thirdPlaceRanking(effective);
   // A normal bracket locks once the knockout stage begins — by then the group
   // stage is over and your predictions are final. (Second-chance brackets are
@@ -179,16 +184,28 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
               🎯 <strong>+10 exact-spot bonus</strong> for landing a team in its precise slot — but only for teams whose group you called early (2+ of their games before kickoff).
             </span>
           )}
+          {isSecondChance && (
+            <span className="mt-1 block">
+              ⚡ <strong>Double or Nothing:</strong> stake one pick per round with the <span className="rounded bg-amber-500/20 px-1 font-semibold text-amber-700 dark:text-amber-300">✦</span> button — nail it and that round&rsquo;s points <strong>double</strong>; miss and you <strong>lose</strong> them. Stake none if you&rsquo;d rather play it safe.
+            </span>
+          )}
         </p>
         <details className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
           <summary className="cursor-pointer select-none font-medium hover:text-[var(--wc-accent)]">Point values</summary>
           <p className="mt-1">
-            Reach: Round of 32 <strong>+20</strong> · R16 <strong>+40</strong> · QF <strong>+80</strong> · SF <strong>+160</strong> · Champion <strong>+320</strong> — per team, opponent-agnostic.
+            Reach: Round of 16 <strong>+20</strong> · Quarterfinal <strong>+40</strong> · Semifinal <strong>+80</strong> · Final <strong>+160</strong> · Champion <strong>+320</strong> — per team, opponent-agnostic.
           </p>
         </details>
       </div>
 
-      <BracketTree resolved={resolved} onPick={locked ? undefined : onPick} gradePick={gradePick} />
+      <BracketTree
+        resolved={resolved}
+        onPick={locked ? undefined : onPick}
+        gradePick={gradePick}
+        boosts={isSecondChance ? boosts : undefined}
+        onBoost={isSecondChance ? setBoost : undefined}
+        stakeDecided={stakeDecided}
+      />
 
       {canSubmit && (
         <div className="sticky bottom-4 flex flex-col items-center gap-1">

@@ -115,7 +115,7 @@ const ZERO_KO: KnockoutScore = {
   exact: 0,
 };
 
-type KOBucket = "r32" | "r16" | "qf" | "sf" | "third" | "champion";
+export type KOBucket = "r32" | "r16" | "qf" | "sf" | "third" | "champion";
 
 function bucketOf(m: number): KOBucket | null {
   if (m >= 73 && m <= 88) return "r32";
@@ -126,6 +126,15 @@ function bucketOf(m: number): KOBucket | null {
   if (m === 104) return "champion";
   return null;
 }
+
+/** Public alias: which KO round a match belongs to (for the stake UI / store). */
+export const koBucketOf = bucketOf;
+
+/** Double-or-Nothing stakes (second-chance brackets): at most ONE staked match per
+ *  knockout round, keyed by round bucket → that round's staked match number. A
+ *  staked pick that lands pays DOUBLE the round's base points; one that misses
+ *  SUBTRACTS them. The third-place playoff isn't stakeable. */
+export type Boosts = Partial<Record<KOBucket, number>>;
 
 /** Round point value for a given knockout match number. */
 export function knockoutPointsForMatch(m: number): number {
@@ -196,6 +205,7 @@ function scoreResolvedKnockout(
   resolved: Map<number, KOMatch>,
   truth: TournamentTruth,
   eligibleExact?: Set<string> | null,
+  boosts?: Boosts | null,
 ): KnockoutScore {
   const reachers = actualReachersByBucket(truth);
   const out: KnockoutScore = { ...ZERO_KO };
@@ -204,11 +214,21 @@ function scoreResolvedKnockout(
     if (!myWinner) continue;
     const b = bucketOf(m);
     if (!b) continue;
+    const base = KO_POINTS_PER_MATCH[m];
+    // Double-or-Nothing: this match is the user's stake for its round.
+    const staked = boosts?.[b] === m;
     if (reachers[b].has(myWinner)) {
       out[b]++;
-      out.points += KO_POINTS_PER_MATCH[m];
+      out.points += base;
+      if (staked) out.points += base; // landed → pay DOUBLE the round's base points
+    } else if (staked && reachers[b].size >= ROUND_SIZE[b]) {
+      // Stake missed and the round is fully resolved → lose the round's points.
+      // (Gated on the round being decided so a still-alive pick isn't penalized
+      // mid-round; totals are allowed to go negative.)
+      out.points -= base;
     }
-    // Exact-slot bonus — only for teams the bracket earned eligibility for.
+    // Exact-slot bonus — only for teams the bracket earned eligibility for. The
+    // bonus itself is never doubled or penalized by a stake (base points only).
     if (truth.knockoutWinners[m] === myWinner && (!eligibleExact || eligibleExact.has(myWinner))) {
       out.exact++;
       out.points += POINTS.koExactBonus;
@@ -223,9 +243,10 @@ export function scoreSecondChance(
   knockout: KnockoutWinners,
   r32: ResolvedFixture[] | null,
   truth: TournamentTruth | null,
+  boosts?: Boosts | null,
 ): KnockoutScore {
   if (!r32 || !truth) return ZERO_KO;
-  return scoreResolvedKnockout(resolveKnockoutFrom(r32, knockout), truth);
+  return scoreResolvedKnockout(resolveKnockoutFrom(r32, knockout), truth, null, boosts);
 }
 
 export interface FullScore {

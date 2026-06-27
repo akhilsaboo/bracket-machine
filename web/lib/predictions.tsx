@@ -15,6 +15,7 @@ import { getTombstones } from "@/lib/tombstones";
 import { SCHEDULE } from "@/lib/data";
 import { isLocked } from "@/lib/schedule";
 import { isKnockoutStarted, tournamentHasStarted } from "@/lib/results";
+import { koBucketOf, type Boosts } from "@/lib/scoring";
 
 export interface Score {
   home: number | null;
@@ -36,6 +37,9 @@ export interface BracketState {
   /** Which auto-fill persona last generated this bracket (null = built by hand).
    *  Recorded for owner analytics; an auto-fill mode id from lib/autofill. */
   fillMode: string | null;
+  /** Double-or-Nothing stakes (second-chance brackets only): one staked match per
+   *  KO round. See lib/scoring Boosts. */
+  boosts: Boosts;
 }
 
 export type BracketKind = "normal" | "second_chance";
@@ -69,6 +73,7 @@ interface PredictionContextValue {
   predictions: Predictions;
   knockout: KnockoutWinners;
   awards: AwardPicks;
+  boosts: Boosts;
   groupSubmitted: boolean;
   bracketSubmitted: boolean;
   tiebreakerGoals: number | null;
@@ -78,6 +83,10 @@ interface PredictionContextValue {
   setKnockoutWinner: (match: number | string, code: string) => void;
   /** Bulk-merge knockout winners (used by auto-fill). */
   setManyKnockout: (winners: KnockoutWinners) => void;
+  /** Toggle the Double-or-Nothing stake on a knockout match (second-chance only).
+   *  Picking a match stakes it for its round, replacing any other stake in that
+   *  round; clicking the staked match again clears it. */
+  setBoost: (match: number) => void;
   setAward: (key: string, teamCode: string | null) => void;
   setGroupSubmitted: (v: boolean) => void;
   setBracketSubmitted: (v: boolean) => void;
@@ -131,6 +140,7 @@ const emptyState = (): BracketState => ({
   bracketSubmitted: false,
   tiebreakerGoals: null,
   fillMode: null,
+  boosts: {},
 });
 
 // Map a group fixture id → its fixture, so a reset can tell which group picks
@@ -156,6 +166,8 @@ const resetState = (s: BracketState, now: Date, kind: BracketKind): BracketState
   return {
     predictions,
     knockout: knockoutLocked ? { ...s.knockout } : {},
+    // Stakes ride with the knockout picks they belong to.
+    boosts: knockoutLocked ? { ...(s.boosts ?? {}) } : {},
     awards: awardsLocked ? { ...s.awards } : {},
     groupSubmitted: false,
     bracketSubmitted: knockoutLocked ? s.bracketSubmitted : false,
@@ -172,6 +184,7 @@ const cloneState = (s: BracketState): BracketState => ({
   bracketSubmitted: s.bracketSubmitted,
   tiebreakerGoals: s.tiebreakerGoals,
   fillMode: s.fillMode,
+  boosts: { ...(s.boosts ?? {}) },
 });
 
 const predictedCount = (s: BracketState): number =>
@@ -321,6 +334,20 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
     [mutateActive],
   );
 
+  const setBoost = useCallback(
+    (match: number) => {
+      const bucket = koBucketOf(match);
+      if (!bucket || bucket === "third") return; // 3rd-place playoff isn't stakeable
+      mutateActive((s) => {
+        const boosts = { ...(s.boosts ?? {}) };
+        if (boosts[bucket] === match) delete boosts[bucket]; // toggle off
+        else boosts[bucket] = match; // one stake per round → replaces any prior
+        return { ...s, boosts };
+      });
+    },
+    [mutateActive],
+  );
+
   const setAward = useCallback(
     (key: string, teamCode: string | null) => {
       mutateActive((s) => {
@@ -461,6 +488,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
         predictions: activeState.predictions,
         knockout: activeState.knockout,
         awards: activeState.awards,
+        boosts: activeState.boosts ?? {},
         groupSubmitted: activeState.groupSubmitted,
         bracketSubmitted: activeState.bracketSubmitted,
         tiebreakerGoals: activeState.tiebreakerGoals,
@@ -468,6 +496,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
         setManyScores,
         setKnockoutWinner,
         setManyKnockout,
+        setBoost,
         setAward,
         setGroupSubmitted,
         setBracketSubmitted,
@@ -528,6 +557,7 @@ export function ReadOnlyPredictions({
     predictions,
     knockout,
     awards: {},
+    boosts: {},
     groupSubmitted: true,
     bracketSubmitted: true,
     tiebreakerGoals,
@@ -535,6 +565,7 @@ export function ReadOnlyPredictions({
     setManyScores: noop,
     setKnockoutWinner: noop,
     setManyKnockout: noop,
+    setBoost: noop,
     setAward: noop,
     setGroupSubmitted: noop,
     setBracketSubmitted: noop,

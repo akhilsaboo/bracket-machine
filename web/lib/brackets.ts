@@ -7,6 +7,7 @@ import type {
   KnockoutWinners,
   Predictions,
 } from "@/lib/predictions";
+import type { Boosts } from "@/lib/scoring";
 
 export interface BracketRow {
   id: string;
@@ -16,13 +17,14 @@ export interface BracketRow {
   predictions: Predictions;
   knockout: KnockoutWinners;
   awards: AwardPicks;
+  boosts: Boosts | null;
   submitted_at: string | null;
   tiebreaker_total_goals: number | null;
   fill_mode: string | null;
 }
 
 const SELECT =
-  "id, user_id, name, kind, predictions, knockout, awards, submitted_at, tiebreaker_total_goals, fill_mode";
+  "id, user_id, name, kind, predictions, knockout, awards, boosts, submitted_at, tiebreaker_total_goals, fill_mode";
 
 /** Map a Supabase row into a client BracketRecord. */
 export function rowToRecord(row: BracketRow): BracketRecord {
@@ -31,6 +33,7 @@ export function rowToRecord(row: BracketRow): BracketRecord {
     predictions: (row.predictions as Predictions) ?? {},
     knockout: (row.knockout as KnockoutWinners) ?? {},
     awards: (row.awards as AwardPicks) ?? {},
+    boosts: (row.boosts as Boosts) ?? {},
     // groupSubmitted isn't a column — a submitted bracket implies the group stage was too.
     groupSubmitted: submitted,
     bracketSubmitted: submitted,
@@ -98,6 +101,7 @@ export async function upsertBracket(
       predictions: record.state.predictions,
       knockout: record.state.knockout,
       awards: record.state.awards,
+      boosts: record.state.boosts ?? {},
       submitted_at: record.state.bracketSubmitted ? new Date().toISOString() : null,
       tiebreaker_total_goals: record.state.tiebreakerGoals,
       fill_mode: record.state.fillMode,
