@@ -153,15 +153,16 @@ const FIXTURE_BY_ID: Record<string, (typeof SCHEDULE)[number]> = Object.fromEntr
  *  — group scorelines whose match has kicked off, and (once the knockout cliff /
  *  tournament start passes) the knockout bracket, awards, and tiebreaker — survive,
  *  so a reset never wipes games that have already happened or been scored. */
-const resetState = (s: BracketState, now: Date, kind: BracketKind): BracketState => {
+const resetState = (s: BracketState, now: Date): BracketState => {
   const predictions: Predictions = {};
   for (const [id, score] of Object.entries(s.predictions)) {
     const f = FIXTURE_BY_ID[id];
     if (f && isLocked(f, now)) predictions[id] = score; // already kicked off → keep
   }
-  // Second-chance brackets stay editable through the knockout cliff, so their
-  // knockout picks are never "locked" by the calendar.
-  const knockoutLocked = kind !== "second_chance" && isKnockoutStarted(now);
+  // Both kinds lock at the knockout cliff: a normal bracket's group predictions are
+  // final by then, and a second-chance bracket must be filled BEFORE the Round of 32
+  // kicks off — after that its knockout picks freeze too.
+  const knockoutLocked = isKnockoutStarted(now);
   const awardsLocked = tournamentHasStarted(now);
   return {
     predictions,
@@ -381,8 +382,7 @@ export function PredictionProvider({ children }: { children: ReactNode }) {
   );
   const replaceAll = useCallback((state: BracketState) => mutateActive(() => state), [mutateActive]);
   const reset = useCallback(() => {
-    const kind = storeRef.current.records[storeRef.current.activeId]?.kind ?? "normal";
-    mutateActive((s) => resetState(s, nowRef.current, kind));
+    mutateActive((s) => resetState(s, nowRef.current));
   }, [mutateActive]);
 
   // --- bracket management ---

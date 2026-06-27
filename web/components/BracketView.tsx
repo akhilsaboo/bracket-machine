@@ -88,11 +88,11 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
   // on a match whose real result is already in (truth.knockoutWinners has it).
   const stakeDecided = new Set(truth ? Object.keys(truth.knockoutWinners).map(Number) : []);
   const thirds = isSecondChance ? [] : thirdPlaceRanking(effective);
-  // A normal bracket locks once the knockout stage begins — by then the group
-  // stage is over and your predictions are final. (Second-chance brackets are
-  // meant to be filled during the knockouts, so they stay editable.) Uses the
-  // preview-aware clock, so "Preview mid-tournament" shows the locked state.
-  const locked = !isSecondChance && isKnockoutStarted(now);
+  // Every bracket locks once the knockout stage begins. A second chance is exactly
+  // that: you fill it from the real Round of 32 BEFORE the knockouts start, then it
+  // freezes too — you don't get to keep editing games as the tournament unfolds.
+  // Uses the preview-aware clock, so "Preview mid-tournament" shows the locked state.
+  const locked = isKnockoutStarted(now);
   const canSubmit = !!champ && !bracketSubmitted && !locked;
   // The total-goals tiebreaker freezes at first kickoff — after that, goals start
   // accumulating, so editing/setting it would be an unfair advantage.
@@ -152,7 +152,9 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
     <div className="space-y-8">
       {locked ? (
         <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-4 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-          🔒 Bracket locked — the knockout stage has started. Want back in? Try a Second-Chance bracket.
+          {isSecondChance
+            ? "🔒 Second-chance bracket locked. The Round of 32 has kicked off."
+            : "🔒 Bracket locked. The knockout stage has started — want back in? Try a second-chance bracket."}
         </div>
       ) : (
         bracketSubmitted && (
@@ -203,7 +205,7 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
         onPick={locked ? undefined : onPick}
         gradePick={gradePick}
         boosts={isSecondChance ? boosts : undefined}
-        onBoost={isSecondChance ? setBoost : undefined}
+        onBoost={isSecondChance && !locked ? setBoost : undefined}
         stakeDecided={stakeDecided}
       />
 
