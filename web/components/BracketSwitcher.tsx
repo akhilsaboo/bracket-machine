@@ -154,7 +154,7 @@ export function BracketSwitcher() {
                       {b.name}
                     </span>
                     <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
-                      {b.kind === "second_chance" ? `${b.predicted}/72` : `${b.picksMade}/${b.picksTotal}`}
+                      {b.kind === "second_chance" ? "second chance" : `${b.picksMade}/${b.picksTotal}`}
                     </span>
                   </button>
                 )}

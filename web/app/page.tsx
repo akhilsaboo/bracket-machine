@@ -6,6 +6,7 @@ import { SCHEDULE } from "@/lib/data";
 import { scoreEverything } from "@/lib/scoring";
 import { usePredictions } from "@/lib/predictions";
 import { useTournament } from "@/lib/liveResults";
+import { isKnockoutStarted } from "@/lib/results";
 
 const SC_BANNER_DISMISSED_KEY = "wc2026-sc-banner-dismissed";
 const RESET_CONFIRM_SKIP_KEY = "wc2026-skip-reset-confirm";
@@ -99,8 +100,9 @@ export default function Home() {
   // Once the real R32 is known, surface second-chance brackets — but never
   // duplicate: if one already exists the banner opens it instead of creating.
   const r32Ready = tournament.round32 !== null;
-  const existingSC = brackets.find((b) => b.kind === "second_chance");
-  const showSCBanner = r32Ready && !isSecondChance && !scDismissed;
+  // Offer a second chance only in the window it's actually usable: after the group
+  // stage seeds the real R32, and BEFORE the Round of 32 kicks off and locks it.
+  const showSCBanner = r32Ready && !isKnockoutStarted(now) && !isSecondChance && !scDismissed;
 
   const dismissSCBanner = () => {
     localStorage.setItem(SC_BANNER_DISMISSED_KEY, "1");
@@ -108,12 +110,10 @@ export default function Home() {
   };
 
   const handleSCBanner = () => {
-    if (existingSC) {
-      switchBracket(existingSC.id);
-    } else {
-      const rec = createBracket({ name: "Second Chance", kind: "second_chance" });
-      if (rec) switchBracket(rec.id);
-    }
+    // Each click starts a FRESH second-chance bracket — you can run several, just
+    // like your normal brackets. They appear in the switcher with a 🔄 label.
+    const rec = createBracket({ name: "Second Chance", kind: "second_chance" });
+    if (rec) switchBracket(rec.id);
     setTab("bracket");
   };
 
@@ -214,12 +214,10 @@ export default function Home() {
             >
               <span>
                 <span className="block text-sm font-bold">
-                  🔄 {existingSC ? "Open your Second-Chance bracket" : "Group stage is done — try a Second-Chance bracket"}
+                  🔄 Want another chance?
                 </span>
                 <span className="block text-xs text-slate-500 dark:text-slate-400">
-                  {existingSC
-                    ? "Knockout-only, seeded from the real Round of 32."
-                    : "Start from the real Round of 32 and fill a knockout-only bracket. Up to 25 brackets — make more anytime from the switcher."}
+                  Complete a second-chance bracket from the real Round of 32. Lock it in before the knockouts start.
                 </span>
               </span>
               <span className="shrink-0 text-[var(--wc-accent)]">→</span>

@@ -302,7 +302,9 @@ export function groupFinalHtml(d: RecapData): string {
 // real-R32 seed, Double-or-Nothing, the global second-chance leaderboard, + pools.
 // Sent the evening the group stage ends, before the R32 lockout.
 export const SECONDCHANCE_KEY = "secondchance-v1";
-export const SECONDCHANCE_SEND_AT_ISO = "2026-06-28T02:00:00Z"; // ~7pm PT, Jun 27
+// 2h after the last group match kicks off (M69/M70, Group J, 02:00Z Jun 28) — i.e.
+// roughly when the group stage finishes. 9pm PT Jun 27.
+export const SECONDCHANCE_SEND_AT_ISO = "2026-06-28T04:00:00Z";
 
 export function secondChanceSubject(): string {
   return "Bracket busted? You’ve got a second chance 🔄";
@@ -328,22 +330,22 @@ export function secondChanceHtml(firstName: string, userId: string): string {
     FEATURE(
       "🔄",
       "A Second-Chance bracket",
-      "It starts from the <strong>real Round of 32</strong> — the actual 32 teams that made it through — and you pick every winner from there to the Champion. No group stage, pure knockout. Everyone starts level.",
+      "It starts from the <strong>real Round of 32</strong>, the actual 32 teams that made it through. You pick every winner from there to the Champion. No group stage, pure knockout, and everyone starts level.",
     ) +
     FEATURE(
       "⚡",
       "Double or Nothing",
-      "Once per round, stake a single pick: nail it and that round’s points <strong>double</strong> — miss it and you <strong>lose</strong> them. Feeling sure about an upset? Ride it. Rather play safe? Stake nothing. Your call, every round.",
+      "Once per round, stake a single pick. Nail it and that round’s points <strong>double</strong>. Miss it and you <strong>lose</strong> them. Feeling sure about an upset? Ride it. Rather play safe? Stake nothing. Your call, every round.",
       "NEW",
     ) +
     FEATURE(
       "🏆",
       "Two ways to compete",
-      "Climb the brand-new <strong>global Second-Chance leaderboard</strong> against every other player — no friends required — or spin up a <strong>pool</strong> and run a knockout league with your group chat.",
+      "Climb the brand-new <strong>global Second-Chance leaderboard</strong> against every other player, no friends required. Or spin up a <strong>pool</strong> and run a knockout league with your group chat.",
       "NEW",
     ) +
     P(
-      `⏱️ <strong>Heads up — there’s no real gap.</strong> Second-Chance brackets lock the moment the Round of 32 kicks off: <strong>${KO_LOCK}</strong>. Build yours now; you can keep tweaking each round right up to its kickoff, and you only ever miss games already played.`,
+      `⏱️ <strong>You’ve got to move fast.</strong> A Second-Chance bracket locks the moment the Round of 32 kicks off: <strong>${KO_LOCK}</strong>. Once it does, it’s frozen for the rest of the tournament, so build yours and lock it in before then.`,
       "background:#fff7ed;border-radius:10px;padding:12px 14px;font-size:14px",
     ) +
     `<a href="${APP_URL}" style="display:block;background:#db2777;color:#fff;text-decoration:none;text-align:center;font-weight:700;padding:14px;border-radius:10px;font-size:15px">Build your Second-Chance bracket →</a>` +
