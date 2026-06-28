@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { gd, points } from "@/lib/engine";
-import { GROUP_IDS } from "@/lib/data";
+import { GROUP_IDS, SCHEDULE } from "@/lib/data";
 import { allGroupsComplete, groupIsComplete, thirdPlaceRanking, withResults } from "@/lib/compute";
 import { champion, resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/lib/knockout";
 import { flag } from "@/lib/flags";
@@ -10,7 +10,7 @@ import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
 import { isKnockoutStarted, isKoRoundStarted, tournamentHasStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
-import { knockoutGrader } from "@/lib/scoring";
+import { exactEligibleTeams, exactSeedingSlots, knockoutGrader } from "@/lib/scoring";
 import { BracketTree } from "./BracketTree";
 
 export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
@@ -88,6 +88,13 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
   // freeze when the knockouts begin, but the stake for each upcoming round stays
   // open until that round kicks off, so you choose it with live info.
   const stakeLocked = (matchNo: number) => isKoRoundStarted(matchNo, now);
+  // R32 exact-position +10 markers — normal brackets only (a second-chance bracket's
+  // R32 is the real one, so there's nothing to seed correctly). Compares the
+  // bracket's RAW predicted R32 against the real one; lands the moment groups finish.
+  const seedSlots = isSecondChance
+    ? new Set<string>()
+    : exactSeedingSlots(predictions, truth, exactEligibleTeams(predictions, SCHEDULE));
+  const seedExact = (matchNo: number, side: "home" | "away") => seedSlots.has(`${matchNo}:${side}`);
   const thirds = isSecondChance ? [] : thirdPlaceRanking(effective);
   // Every bracket locks once the knockout stage begins. A second chance is exactly
   // that: you fill it from the real Round of 32 BEFORE the knockouts start, then it
@@ -184,7 +191,7 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
           The bracket lines just show one possible path — you&rsquo;re really picking <strong>which teams go how far</strong>.
           {!isSecondChance && (
             <span className="mt-1 block">
-              🎯 <strong>+10 exact-spot bonus</strong> for landing a team in its precise slot — but only for teams whose group you called early (2+ of their games before kickoff).
+              🎯 <strong>+10 exact-position bonus</strong> for each team you seed into its precise <strong>Round-of-32 slot</strong> — for teams whose group you called early (2+ of their games before kickoff). Shows as a green +10 the moment the groups finish.
             </span>
           )}
           {isSecondChance && (
@@ -213,6 +220,7 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
         boosts={isSecondChance ? boosts : undefined}
         onBoost={isSecondChance ? setBoost : undefined}
         stakeLocked={stakeLocked}
+        seedExact={seedExact}
       />
 
       {canSubmit && (

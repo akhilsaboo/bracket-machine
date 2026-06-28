@@ -15,6 +15,7 @@ interface Row {
   bracket_name: string;
   points: number;
   group: number;
+  bonus: number;
   ko: number;
   exact: number;
 }
@@ -139,6 +140,14 @@ export function GlobalLeaderboard({
                   <th className="px-3 py-2 text-left">#</th>
                   <th className="px-3 py-2 text-left">Entry</th>
                   {!isSC && <th className="hidden px-3 py-2 text-right sm:table-cell">Group</th>}
+                  {!isSC && (
+                    <th
+                      className="hidden px-3 py-2 text-right sm:table-cell"
+                      title="R32 exact-position bonus: +10 per team you seeded into its exact Round-of-32 slot"
+                    >
+                      Bonus
+                    </th>
+                  )}
                   {!isSC && <th className="hidden px-3 py-2 text-right sm:table-cell">KO</th>}
                   <th className="px-3 py-2 text-right">{isSC ? "Pts" : "Total"}</th>
                   <th
@@ -187,6 +196,11 @@ export function GlobalLeaderboard({
                       </td>
                       {!isSC && (
                         <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.group}</td>
+                      )}
+                      {!isSC && (
+                        <td className="hidden px-3 py-2 text-right tabular-nums text-emerald-600 sm:table-cell dark:text-emerald-400">
+                          {r.bonus ? `+${r.bonus}` : "—"}
+                        </td>
                       )}
                       {!isSC && (
                         <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.ko}</td>

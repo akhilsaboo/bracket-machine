@@ -21,6 +21,7 @@ function Pick({
   align = "left",
   grade = null,
   pts = 0,
+  seedExact = false,
 }: {
   team: KOMatch["home"];
   isWinner: boolean;
@@ -29,9 +30,11 @@ function Pick({
   align?: "left" | "right";
   grade?: KOPickGrade | null; // grade for the winning seat (null = ungraded)
   pts?: number;
+  /** This team is in its EXACT real Round-of-32 slot → green +10 (R32 only). */
+  seedExact?: boolean;
 }) {
-  // Advancement grading: green if the picked team really reached this round,
-  // red if it didn't. The exact-slot bonus shows as a small +10 chip.
+  // Advancement grading: green if the picked team really reached this round, red if
+  // it didn't. Separately, an R32 team seeded into its exact real slot shows +10.
   const advanced = isWinner && grade?.advanced === true;
   const wrong = isWinner && grade != null && grade.advanced === false;
   const interactive = !!onPick && !!team;
@@ -64,17 +67,20 @@ function Pick({
     >
       <span className="text-sm leading-none">{team ? flag(team.code) : "·"}</span>
       <span className="truncate">{team?.name ?? "TBD"}</span>
-      {advanced && (
+      {(advanced || wrong || seedExact) && (
         <span className="ml-auto flex items-center gap-1 text-[10px] font-bold">
-          +{pts}
-          {grade?.exact && (
-            <span className="rounded bg-emerald-500/25 px-1" title="Exact bracket position">
+          {advanced && <span>+{pts}</span>}
+          {wrong && <span>✗</span>}
+          {seedExact && (
+            <span
+              className="rounded bg-emerald-500/25 px-1 text-emerald-700 dark:text-emerald-300"
+              title="Exact Round-of-32 position (+10)"
+            >
               +10
             </span>
           )}
         </span>
       )}
-      {wrong && <span className="ml-auto text-[10px] font-bold">✗</span>}
     </button>
   );
 }
@@ -137,6 +143,7 @@ function MatchBox({
   boosts,
   onBoost,
   stakeLocked,
+  seedExact,
 }: {
   m: KOMatch;
   onPick?: (match: number, code: string) => void;
@@ -146,6 +153,8 @@ function MatchBox({
   onBoost?: (match: number) => void;
   /** True once this match's ROUND has kicked off — its stake is then frozen. */
   stakeLocked?: (matchNo: number) => boolean;
+  /** Whether the home/away team is in its exact real R32 slot (+10). R32 only. */
+  seedExact?: (matchNo: number, side: "home" | "away") => boolean;
 }) {
   const decided = !!m.winner;
   const grade = m.winner && gradePick ? gradePick(m.match, m.winner.code) : null;
@@ -182,6 +191,7 @@ function MatchBox({
         align={align}
         grade={homeWins ? grade : null}
         pts={pts}
+        seedExact={seedExact?.(m.match, "home") ?? false}
       />
       <div className="h-px bg-slate-200 dark:bg-slate-700" />
       <Pick
@@ -192,6 +202,7 @@ function MatchBox({
         align={align}
         grade={awayWins ? grade : null}
         pts={pts}
+        seedExact={seedExact?.(m.match, "away") ?? false}
       />
       {showBar && (
         <StakeBar
@@ -216,6 +227,7 @@ function Column({
   boosts,
   onBoost,
   stakeLocked,
+  seedExact,
 }: {
   label?: string;
   matches: number[];
@@ -226,6 +238,7 @@ function Column({
   boosts?: Boosts;
   onBoost?: (match: number) => void;
   stakeLocked?: (matchNo: number) => boolean;
+  seedExact?: (matchNo: number, side: "home" | "away") => boolean;
 }) {
   return (
     <div className="flex flex-col">
@@ -243,6 +256,7 @@ function Column({
             boosts={boosts}
             onBoost={onBoost}
             stakeLocked={stakeLocked}
+            seedExact={seedExact}
           />
         ))}
       </div>
@@ -261,15 +275,17 @@ export interface BracketTreeProps {
   /** True once a match's ROUND has kicked off — its stake is then frozen
    *  (picks lock all at once at the R32; only the stakes lock round by round). */
   stakeLocked?: (matchNo: number) => boolean;
+  /** Whether an R32 home/away team is in its exact real slot (green +10). */
+  seedExact?: (matchNo: number, side: "home" | "away") => boolean;
 }
 
-export function BracketTree({ resolved, onPick, gradePick, boosts, onBoost, stakeLocked }: BracketTreeProps) {
+export function BracketTree({ resolved, onPick, gradePick, boosts, onBoost, stakeLocked, seedExact }: BracketTreeProps) {
   const L = BRACKET_LAYOUT.left;
   const R = BRACKET_LAYOUT.right;
   const finalM = resolved.get(BRACKET_LAYOUT.final)!;
   const thirdM = resolved.get(BRACKET_LAYOUT.third)!;
   const champ = champion(resolved);
-  const sp = { boosts, onBoost, stakeLocked }; // Double-or-Nothing props, shared
+  const sp = { boosts, onBoost, stakeLocked, seedExact }; // shared per-match extras
 
   return (
     <div className="overflow-x-auto pb-4">

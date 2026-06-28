@@ -1,7 +1,7 @@
 // Score a bracket against the current set of match results.
 import type { Fixture } from "@/lib/data";
 import { resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/lib/knockout";
-import { withResults, type ResolvedFixture } from "@/lib/compute";
+import { round32, withResults, type ResolvedFixture } from "@/lib/compute";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 import { gradeGroup, type GroupResult, type TournamentTruth } from "@/lib/results";
 
@@ -185,26 +185,24 @@ export function knockoutGrader(
 
 /** Advancement scoring: you earn a round's points for each team you correctly
  *  predicted to REACH that round (opponent/path doesn't matter, March-Madness
- *  style), plus a +10 bonus when that team is in the EXACT slot you predicted. */
+ *  style). The +10 EXACT bonus is NOT here — it's the R32 exact-position bonus,
+ *  scored separately (see scoreExactSeeding) so it lands the moment the groups
+ *  finish, not when the knockouts play. */
 export function scoreKnockout(
   predictions: Predictions,
   knockout: KnockoutWinners,
   truth: TournamentTruth,
-  eligibleExact?: Set<string> | null,
 ): KnockoutScore {
   const resolved = resolveKnockout(predictions, knockout);
   if (!resolved) return ZERO_KO;
-  return scoreResolvedKnockout(resolved, truth, eligibleExact);
+  return scoreResolvedKnockout(resolved, truth);
 }
 
-/** Core advancement + exact scoring over an already-resolved knockout map. The
- *  exact-slot bonus is gated by `eligibleExact` (teams whose group you called
- *  early); pass null/undefined to ungate it (e.g. second-chance, whose structure
- *  is the REAL R32 and so can't be farmed). */
+/** Core advancement scoring over an already-resolved knockout map (+ Double-or-
+ *  Nothing stakes for second-chance brackets). */
 function scoreResolvedKnockout(
   resolved: Map<number, KOMatch>,
   truth: TournamentTruth,
-  eligibleExact?: Set<string> | null,
   boosts?: Boosts | null,
 ): KnockoutScore {
   const reachers = actualReachersByBucket(truth);
@@ -227,12 +225,6 @@ function scoreResolvedKnockout(
       // mid-round; totals are allowed to go negative.)
       out.points -= base;
     }
-    // Exact-slot bonus — only for teams the bracket earned eligibility for. The
-    // bonus itself is never doubled or penalized by a stake (base points only).
-    if (truth.knockoutWinners[m] === myWinner && (!eligibleExact || eligibleExact.has(myWinner))) {
-      out.exact++;
-      out.points += POINTS.koExactBonus;
-    }
   }
   return out;
 }
@@ -246,12 +238,66 @@ export function scoreSecondChance(
   boosts?: Boosts | null,
 ): KnockoutScore {
   if (!r32 || !truth) return ZERO_KO;
-  return scoreResolvedKnockout(resolveKnockoutFrom(r32, knockout), truth, null, boosts);
+  return scoreResolvedKnockout(resolveKnockoutFrom(r32, knockout), truth, boosts);
+}
+
+// ── R32 exact-position bonus ───────────────────────────────────────────────
+// +10 for each Round-of-32 slot where the bracket's predicted team is the team
+// REALLY in that exact slot — i.e. you called the group stage precisely enough to
+// seed that team in its actual position. Lands as soon as the groups are decided
+// (it's about seeding, not knockout results). Gated by exact-eligibility so a
+// gap-filled late bracket (raw groups incomplete → no predicted R32) can't farm it.
+
+export interface SeedingScore {
+  points: number;
+  exact: number; // # of R32 slots placed in their exact real position
+}
+
+/** The REAL Round of 32 derived from the live group truth (same seed the
+ *  second-chance bracket uses). Null until all 12 groups are decided. */
+export function realRound32FromTruth(truth: TournamentTruth): ResolvedFixture[] | null {
+  const preds: Predictions = {};
+  for (const [id, r] of Object.entries(truth.groupResults)) {
+    preds[id] = { home: r.homeGoals, away: r.awayGoals };
+  }
+  return round32(preds);
+}
+
+/** R32 slots the bracket placed exactly right, as `${matchNo}:home`/`:away` keys —
+ *  used for both the score and the green +10 markers in the bracket UI. */
+export function exactSeedingSlots(
+  predictions: Predictions,
+  truth: TournamentTruth | null,
+  eligibleExact: Set<string>,
+): Set<string> {
+  const out = new Set<string>();
+  if (!truth) return out;
+  const real = realRound32FromTruth(truth);
+  const pred = round32(predictions); // the bracket's OWN predicted R32 (raw picks)
+  if (!real || !pred) return out;
+  const realByMatch = new Map(real.map((f) => [f.match, f]));
+  for (const f of pred) {
+    const r = realByMatch.get(f.match);
+    if (!r) continue;
+    if (f.home && r.home && f.home.code === r.home.code && eligibleExact.has(r.home.code)) out.add(`${f.match}:home`);
+    if (f.away && r.away && f.away.code === r.away.code && eligibleExact.has(r.away.code)) out.add(`${f.match}:away`);
+  }
+  return out;
+}
+
+export function scoreExactSeeding(
+  predictions: Predictions,
+  truth: TournamentTruth | null,
+  eligibleExact: Set<string>,
+): SeedingScore {
+  const exact = exactSeedingSlots(predictions, truth, eligibleExact).size;
+  return { points: exact * POINTS.koExactBonus, exact };
 }
 
 export interface FullScore {
   group: BracketScore;
   ko: KnockoutScore;
+  bonus: SeedingScore;
   total: number;
 }
 
@@ -271,8 +317,8 @@ export function scoreEverything(
   // locked picks), NOT the gap-filled ones — so a bracket only earns exact slots
   // for teams whose group it actually predicted (≥2 games) before kickoff.
   const eligibleExact = exactEligibleTeams(predictions, fixtures);
-  const ko = truth
-    ? scoreKnockout(withResults(predictions, truth.groupResults), knockout, truth, eligibleExact)
-    : ZERO_KO;
-  return { group, ko, total: group.points + ko.points };
+  const ko = truth ? scoreKnockout(withResults(predictions, truth.groupResults), knockout, truth) : ZERO_KO;
+  // R32 exact-position bonus — uses the RAW predicted R32 (not gap-filled).
+  const bonus = scoreExactSeeding(predictions, truth, eligibleExact);
+  return { group, ko, bonus, total: group.points + ko.points + bonus.points };
 }

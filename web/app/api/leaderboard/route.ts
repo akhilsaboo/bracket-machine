@@ -40,6 +40,7 @@ interface Row {
   bracket_name: string;
   points: number;
   group: number;
+  bonus: number; // R32 exact-position bonus
   ko: number;
   exact: number;
 }
@@ -175,6 +176,7 @@ async function compute(sb: SupabaseClient, origin: string, board: Board): Promis
         bracket_name: b.name || "Second Chance",
         points: s.points,
         group: 0,
+        bonus: 0,
         ko: s.points,
         exact: s.exact,
       };
@@ -187,6 +189,7 @@ async function compute(sb: SupabaseClient, origin: string, board: Board): Promis
       bracket_name: b.name || "Bracket",
       points: s.total,
       group: s.group.points,
+      bonus: s.bonus.points,
       ko: s.ko.points,
       exact: s.group.exact,
     };
