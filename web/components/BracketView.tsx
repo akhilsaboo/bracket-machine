@@ -8,7 +8,7 @@ import { champion, resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/
 import { flag } from "@/lib/flags";
 import { usePredictions } from "@/lib/predictions";
 import { useAuth } from "@/lib/auth";
-import { isKnockoutStarted, tournamentHasStarted } from "@/lib/results";
+import { isKnockoutStarted, isKoRoundStarted, tournamentHasStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
 import { knockoutGrader } from "@/lib/scoring";
 import { BracketTree } from "./BracketTree";
@@ -84,9 +84,10 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
   const gradePick = truth ? knockoutGrader(truth) : undefined;
 
   const champ = champion(resolved);
-  // Double-or-Nothing is a second-chance-only mechanic. A stake can't be newly set
-  // on a match whose real result is already in (truth.knockoutWinners has it).
-  const stakeDecided = new Set(truth ? Object.keys(truth.knockoutWinners).map(Number) : []);
+  // Double-or-Nothing (second-chance only) locks ROUND BY ROUND: your picks all
+  // freeze when the knockouts begin, but the stake for each upcoming round stays
+  // open until that round kicks off, so you choose it with live info.
+  const stakeLocked = (matchNo: number) => isKoRoundStarted(matchNo, now);
   const thirds = isSecondChance ? [] : thirdPlaceRanking(effective);
   // Every bracket locks once the knockout stage begins. A second chance is exactly
   // that: you fill it from the real Round of 32 BEFORE the knockouts start, then it
@@ -153,7 +154,7 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
       {locked ? (
         <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-4 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
           {isSecondChance
-            ? "🔒 Second-chance bracket locked. The Round of 32 has kicked off."
+            ? "🔒 Picks locked — the knockouts have started. You can still set your ⚡ Double-or-Nothing for each upcoming round until it kicks off."
             : "🔒 Bracket locked. The knockout stage has started — want back in? Try a second-chance bracket."}
         </div>
       ) : (
@@ -205,8 +206,8 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
         onPick={locked ? undefined : onPick}
         gradePick={gradePick}
         boosts={isSecondChance ? boosts : undefined}
-        onBoost={isSecondChance && !locked ? setBoost : undefined}
-        stakeDecided={stakeDecided}
+        onBoost={isSecondChance ? setBoost : undefined}
+        stakeLocked={stakeLocked}
       />
 
       {canSubmit && (

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { pickProgress } from "@/lib/compute";
 import { SCHEDULE } from "@/lib/data";
-import { scoreEverything } from "@/lib/scoring";
+import { scoreEverything, scoreSecondChance } from "@/lib/scoring";
 import { usePredictions } from "@/lib/predictions";
 import { useTournament } from "@/lib/liveResults";
 import { isKnockoutStarted } from "@/lib/results";
@@ -53,7 +53,7 @@ export default function Home() {
   // When set, the main area is taken over by a read-only view of someone else's
   // bracket (opened from the leaderboard). Clicking any top tab exits it.
   const [viewing, setViewing] = useState<Viewing | null>(null);
-  const { predictions, knockout, reset, hydrated, activeKind, isPreview, now, brackets, createBracket, switchBracket, setPreviewNow } =
+  const { predictions, knockout, boosts, reset, hydrated, activeKind, isPreview, now, brackets, createBracket, switchBracket, setPreviewNow } =
     usePredictions();
   const [scDismissed, setScDismissed] = useState(false);
   // TEMP dev clock override selection. Remove with the selector below.
@@ -91,10 +91,10 @@ export default function Home() {
   const totalPoints = useMemo(
     () =>
       isSecondChance
-        ? 0
+        ? scoreSecondChance(knockout, tournament.round32, tournament.truth, boosts).points
         : scoreEverything(predictions, knockout, SCHEDULE, (f) => tournament.groupResultFor(f), tournament.truth)
             .total,
-    [isSecondChance, predictions, knockout, tournament],
+    [isSecondChance, predictions, knockout, boosts, tournament],
   );
 
   // Once the real R32 is known, surface second-chance brackets — but never
@@ -139,7 +139,7 @@ export default function Home() {
                 Pick every score. Your bracket builds itself — full FIFA tiebreakers, live.
               </p>
             </div>
-            {hydrated && !isSecondChance && (
+            {hydrated && (
               <span
                 title="Your active bracket's score against the real results so far"
                 className="self-center rounded-full bg-white/20 px-3 py-1.5 text-base font-extrabold tabular-nums shadow-sm ring-1 ring-white/20"

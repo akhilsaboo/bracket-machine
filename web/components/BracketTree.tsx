@@ -136,7 +136,7 @@ function MatchBox({
   gradePick,
   boosts,
   onBoost,
-  stakeDecided,
+  stakeLocked,
 }: {
   m: KOMatch;
   onPick?: (match: number, code: string) => void;
@@ -144,7 +144,8 @@ function MatchBox({
   gradePick?: GradePick;
   boosts?: Boosts;
   onBoost?: (match: number) => void;
-  stakeDecided?: Set<number>;
+  /** True once this match's ROUND has kicked off — its stake is then frozen. */
+  stakeLocked?: (matchNo: number) => boolean;
 }) {
   const decided = !!m.winner;
   const grade = m.winner && gradePick ? gradePick(m.match, m.winner.code) : null;
@@ -154,14 +155,16 @@ function MatchBox({
   const pickFor = onPick ? (code: string) => onPick(m.match, code) : undefined;
 
   // Double-or-Nothing: stakeable when boosting is on and this match has a round
-  // bucket (the 3rd-place playoff has none). Staked → highlighted. You can only
-  // SET a new stake on a pick you've made whose result isn't already in.
+  // bucket (the 3rd-place playoff has none). The stake locks round by round — you
+  // can set/change it until its round kicks off — and you can't stake a pick whose
+  // team is already knocked out. An existing stake stays shown (frozen) either way.
   const bucket = koBucketOf(m.match);
   const stakeable = !!onBoost && bucket !== null && bucket !== "third";
   const staked = stakeable && bucket ? boosts?.[bucket] === m.match : false;
-  const stakeLocked = !!stakeDecided?.has(m.match);
-  const canToggle = stakeable && (staked || (!!m.winner && !stakeLocked));
-  const showBar = stakeable && (staked || (!!m.winner && !stakeLocked));
+  const roundLocked = stakeLocked?.(m.match) ?? false;
+  const deadPick = grade?.advanced === false; // this pick is already eliminated
+  const canToggle = stakeable && !!m.winner && !roundLocked && !deadPick;
+  const showBar = stakeable && (staked || canToggle);
 
   return (
     <div
@@ -212,7 +215,7 @@ function Column({
   gradePick,
   boosts,
   onBoost,
-  stakeDecided,
+  stakeLocked,
 }: {
   label?: string;
   matches: number[];
@@ -222,7 +225,7 @@ function Column({
   gradePick?: GradePick;
   boosts?: Boosts;
   onBoost?: (match: number) => void;
-  stakeDecided?: Set<number>;
+  stakeLocked?: (matchNo: number) => boolean;
 }) {
   return (
     <div className="flex flex-col">
@@ -239,7 +242,7 @@ function Column({
             gradePick={gradePick}
             boosts={boosts}
             onBoost={onBoost}
-            stakeDecided={stakeDecided}
+            stakeLocked={stakeLocked}
           />
         ))}
       </div>
@@ -255,17 +258,18 @@ export interface BracketTreeProps {
    *  When `onBoost` is omitted, no stake controls render. */
   boosts?: Boosts;
   onBoost?: (match: number) => void;
-  /** Matches whose real result is already in — their stake can't be newly set. */
-  stakeDecided?: Set<number>;
+  /** True once a match's ROUND has kicked off — its stake is then frozen
+   *  (picks lock all at once at the R32; only the stakes lock round by round). */
+  stakeLocked?: (matchNo: number) => boolean;
 }
 
-export function BracketTree({ resolved, onPick, gradePick, boosts, onBoost, stakeDecided }: BracketTreeProps) {
+export function BracketTree({ resolved, onPick, gradePick, boosts, onBoost, stakeLocked }: BracketTreeProps) {
   const L = BRACKET_LAYOUT.left;
   const R = BRACKET_LAYOUT.right;
   const finalM = resolved.get(BRACKET_LAYOUT.final)!;
   const thirdM = resolved.get(BRACKET_LAYOUT.third)!;
   const champ = champion(resolved);
-  const sp = { boosts, onBoost, stakeDecided }; // Double-or-Nothing props, shared
+  const sp = { boosts, onBoost, stakeLocked }; // Double-or-Nothing props, shared
 
   return (
     <div className="overflow-x-auto pb-4">

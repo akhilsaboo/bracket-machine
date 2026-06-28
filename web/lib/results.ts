@@ -4,6 +4,7 @@
 
 import type { Fixture } from "@/lib/data";
 import { isOver } from "@/lib/schedule";
+import koSchedule from "@/data/knockout_schedule.json";
 
 export interface GroupResult {
   homeGoals: number;
@@ -97,6 +98,34 @@ export function tournamentHasStarted(now: Date): boolean {
 /** True once the Round of 32 has begun — group stage is fully in the past. */
 export function isKnockoutStarted(now: Date): boolean {
   return now.getTime() >= new Date(KNOCKOUT_START_ISO).getTime();
+}
+
+// ── Per-round knockout start times (for round-by-round stake locking) ──
+// A round "starts" at the earliest kickoff among its matches. Second-chance
+// Double-or-Nothing stakes lock round by round at these instants (picks lock all
+// at once when the R32 begins; only the stakes stay open per upcoming round).
+interface KoEntry { no: number; stage: string; kickoffUTC: string }
+const ROUND_START_MS: Record<string, number> = (() => {
+  const m: Record<string, number> = {};
+  for (const e of koSchedule as KoEntry[]) {
+    const t = Date.parse(e.kickoffUTC);
+    if (Number.isFinite(t) && (m[e.stage] === undefined || t < m[e.stage])) m[e.stage] = t;
+  }
+  return m;
+})();
+const STAGE_BY_MATCH: Record<number, string> = (() => {
+  const m: Record<number, string> = {};
+  for (const e of koSchedule as KoEntry[]) m[e.no] = e.stage;
+  return m;
+})();
+
+/** True once the round a given knockout match belongs to has kicked off — i.e. its
+ *  Double-or-Nothing stake is now frozen. Unknown matches are treated as unlocked. */
+export function isKoRoundStarted(matchNo: number, now: Date): boolean {
+  const stage = STAGE_BY_MATCH[matchNo];
+  if (!stage) return false;
+  const start = ROUND_START_MS[stage];
+  return start !== undefined && now.getTime() >= start;
 }
 
 // --- Tournament truth ------------------------------------------------------
