@@ -143,6 +143,12 @@ export function isKoMatchStarted(matchNo: number, now: Date): boolean {
   return k !== undefined && now.getTime() >= k;
 }
 
+/** Kickoff instant for a knockout match, or null if unknown. */
+export function koKickoff(matchNo: number): Date | null {
+  const k = KICKOFF_MS[matchNo];
+  return k === undefined ? null : new Date(k);
+}
+
 // --- Tournament truth ------------------------------------------------------
 // A single source-of-truth bundle used to score all brackets against the same
 // outcome. In preview mode it's deterministic; once a live results source is

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FUTURES, fetchFuture, fetchGameOdds, type GameOdds, type KalshiMarketData } from "@/lib/kalshi";
 import { flag, flagFromIso2 } from "@/lib/flags";
-import { isKoMatchStarted, tournamentHasStarted } from "@/lib/results";
+import { isKoMatchStarted, koKickoff, tournamentHasStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
 import { resolveKnockoutFrom, type KnockoutWinners, type KOMatch } from "@/lib/knockout";
 import { usePredictions } from "@/lib/predictions";
@@ -361,6 +361,15 @@ const KO_ORDER = [
   89, 90, 93, 94, 91, 92, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104,
 ];
 
+// Kickoff, in the viewer's local timezone (e.g. "Sun, Jun 28, 12:00 PM").
+function kickoffLabel(no: number): string | null {
+  const d = koKickoff(no);
+  return d
+    ? d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : null;
+}
+const kickoffMs = (no: number) => koKickoff(no)?.getTime() ?? Number.POSITIVE_INFINITY;
+
 function GamesTab({ picks, setPick }: { picks: Picks; setPick: SetPick; userId: string | null }) {
   const { now, isPreview } = usePredictions();
 
@@ -406,6 +415,8 @@ function GamesTab({ picks, setPick }: { picks: Picks; setPick: SetPick; userId: 
     if (last && last.round === round) last.matches.push(no);
     else sections.push({ round, matches: [no] });
   }
+  // Order each round's games chronologically (the bracket order isn't kickoff order).
+  for (const s of sections) s.matches.sort((a, b) => kickoffMs(a) - kickoffMs(b));
 
   if (sections.length === 0) {
     return (
@@ -483,6 +494,12 @@ function GameRow({
 
   return (
     <div className="px-3 py-2">
+      {kickoffLabel(no) && (
+        <div className="mb-1 flex items-center gap-1 text-[10px] font-medium text-slate-400">
+          🕒 {kickoffLabel(no)}
+          {locked && !played && <span className="text-amber-500"> · in progress</span>}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         {teams.map((t) => {
           const selected = pick?.ticker === t.code;
