@@ -191,7 +191,14 @@ export function GlobalLeaderboard({
                             {r.display_name}
                             {you && <span className="ml-1 text-xs text-[var(--wc-accent,#7c3aed)]">(you)</span>}
                           </span>
-                          <span className="text-xs text-slate-400">{r.bracket_name}</span>
+                          <span className="text-xs text-slate-400">
+                            {r.bracket_name}
+                            {!isSC && r.bonus > 0 && (
+                              <span className="ml-1 rounded bg-emerald-500/15 px-1 font-semibold text-emerald-700 dark:text-emerald-300 sm:hidden">
+                                🎯 +{r.bonus}
+                              </span>
+                            )}
+                          </span>
                         </div>
                       </td>
                       {!isSC && (

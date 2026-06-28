@@ -255,6 +255,7 @@ interface LeaderboardRow {
   isYou: boolean;
   totalPoints: number;
   groupPoints: number;
+  bonusPoints: number;
   koPoints: number;
   exact: number;
   tiebreaker_total_goals: number | null;
@@ -429,6 +430,7 @@ function PoolDetail({
         isYou: m.user_id === currentUserId,
         totalPoints: score?.total ?? 0,
         groupPoints: score?.group.points ?? 0,
+        bonusPoints: score?.bonus.points ?? 0,
         koPoints: score?.ko.points ?? 0,
         exact: score?.group.exact ?? 0,
         tiebreaker_total_goals: b?.tiebreaker_total_goals ?? null,
@@ -738,6 +740,7 @@ function PoolDetail({
                   PCTL
                 </th>
                 <th className="hidden w-14 px-3 py-2 text-right sm:table-cell" title="Group-stage points">Grp</th>
+                <th className="hidden w-14 px-3 py-2 text-right sm:table-cell" title="R32 exact-position bonus (+10 per team seeded into its exact slot)">Bonus</th>
                 <th className="hidden w-14 px-3 py-2 text-right sm:table-cell" title="Knockout points">KO</th>
                 <th className="w-12 px-3 py-2 text-right" title="Exact-score predictions">★</th>
                 <th className="hidden w-20 px-3 py-2 text-right sm:table-cell" title="Tiebreaker: total goals">TB goals</th>
@@ -755,12 +758,20 @@ function PoolDetail({
                     <td className="px-3 py-2 text-slate-400">{i + 1}</td>
                     <td className="px-3 py-2">
                       {r.display_name} {r.isYou && <span className="ml-1 text-[10px] text-[var(--wc-accent)]">YOU</span>}
+                      {r.bonusPoints > 0 && (
+                        <span className="ml-1 rounded bg-emerald-500/15 px-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 sm:hidden">
+                          🎯 +{r.bonusPoints}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums font-bold">{r.totalPoints}</td>
                     <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--wc-accent)]">
                       {globalScores.length ? `${percentileOf(globalScores, r.totalPoints)}%` : "—"}
                     </td>
                     <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.groupPoints}</td>
+                    <td className="hidden px-3 py-2 text-right tabular-nums text-emerald-700 sm:table-cell dark:text-emerald-300">
+                      {r.bonusPoints ? `+${r.bonusPoints}` : "—"}
+                    </td>
                     <td className="hidden px-3 py-2 text-right tabular-nums text-slate-500 sm:table-cell">{r.koPoints}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-emerald-700 dark:text-emerald-300">
                       {r.exact || ""}
