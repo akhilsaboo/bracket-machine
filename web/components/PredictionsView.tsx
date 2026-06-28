@@ -474,6 +474,12 @@ function GameRow({
   const teamProb = (t: KOMatch["home"]): number | null =>
     (t && gameOdds?.odds[t.code]) ?? null;
   const earned = pick?.points ?? base;
+  // Don't allow a pick until this game's odds are posted — otherwise a heavy
+  // favorite would lock the flat round base (e.g. 20 pts for Spain), which is
+  // worth far more than its odds-weighted value. Two teams' markets open together.
+  const oddsLoaded = !!gameOdds;
+  const hasOdds = teamProb(match.home) != null || teamProb(match.away) != null;
+  const pickDisabled = locked || played || !hasOdds;
 
   return (
     <div className="px-3 py-2">
@@ -486,7 +492,7 @@ function GameRow({
           return (
             <button
               key={t.code}
-              disabled={locked || played}
+              disabled={pickDisabled}
               onClick={() => onPick(selected ? null : { ticker: t.code, label: t.name, prob, points: gamePoints(no, prob) })}
               className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
                 isWinner
@@ -494,8 +500,8 @@ function GameRow({
                   : selected
                     ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10 font-semibold"
                     : "border-slate-200 dark:border-slate-700"
-              } ${locked || played ? "cursor-default" : "hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5"} ${
-                locked && !played && !selected ? "opacity-60" : ""
+              } ${pickDisabled ? "cursor-default" : "hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5"} ${
+                pickDisabled && !played && !selected ? "opacity-60" : ""
               }`}
             >
               <span className="flex min-w-0 items-center gap-1.5">
@@ -512,7 +518,8 @@ function GameRow({
                 </span>
               ) : (
                 !played &&
-                !locked && (
+                !locked &&
+                hasOdds && (
                   <span className="shrink-0 text-right text-[11px] leading-tight">
                     <span className="block tabular-nums text-slate-400">{prob == null ? "—" : `${prob}%`}</span>
                     <span className="block font-bold tabular-nums text-[var(--wc-accent)]">
@@ -535,11 +542,13 @@ function GameRow({
       )}
       {!played && !locked && (
         <p className="mt-1 text-right text-[10px] text-slate-400">
-          {gameOdds?.odds[match.home!.code] != null || gameOdds?.odds[match.away!.code] != null
-            ? gameOdds?.frozen[match.home!.code] || gameOdds?.frozen[match.away!.code]
-              ? "🔒 odds locked"
-              : "live odds · pays more for the underdog"
-            : `⏳ odds not posted yet — ${base} pts for now`}
+          {!oddsLoaded
+            ? "loading odds…"
+            : hasOdds
+              ? gameOdds?.frozen[match.home!.code] || gameOdds?.frozen[match.away!.code]
+                ? "🔒 odds locked"
+                : "live odds · pays more for the underdog"
+              : "⏳ odds not posted yet — pick opens when they do"}
         </p>
       )}
     </div>
