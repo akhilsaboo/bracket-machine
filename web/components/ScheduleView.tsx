@@ -4,7 +4,10 @@ import { SCHEDULE, type Fixture } from "@/lib/data";
 import { hasSchedule, isLocked, splitSchedule, timeLabel } from "@/lib/schedule";
 import { useTournament } from "@/lib/liveResults";
 import { usePredictions } from "@/lib/predictions";
+import { resolveKnockoutFrom, type KnockoutWinners } from "@/lib/knockout";
+import { flag } from "@/lib/flags";
 import { MatchRow } from "./MatchRow";
+import koSchedule from "@/data/knockout_schedule.json";
 
 function MatchLine({
   f,
@@ -38,17 +41,118 @@ function MatchLine({
 }
 
 export function ScheduleView() {
-  const { now, isPreview } = usePredictions();
+  const { now, isPreview, activeKind } = usePredictions();
+  const isSecondChance = activeKind === "second_chance";
   const dated = hasSchedule(SCHEDULE);
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <p className="text-xs text-slate-400">
-        Every match in kickoff order — change a score right up until that game starts, and your edits
-        flow straight into the standings and your bracket. Each pick locks once its match begins.
+        Every match in kickoff order, in your local time. The knockout schedule is the real bracket —
+        the same for everyone — and fills in with teams as each round is decided.
       </p>
 
-      {!dated ? <FallbackByMatchday /> : <DatedSchedule now={now} isPreview={isPreview} />}
+      <KnockoutSchedule now={now} isPreview={isPreview} />
+
+      {/* Group stage: your own predicted scorelines. Hidden on a knockout-only
+          second-chance bracket, where the knockout schedule above is the whole story. */}
+      {!isSecondChance &&
+        (!dated ? <FallbackByMatchday /> : <DatedSchedule now={now} isPreview={isPreview} />)}
+    </div>
+  );
+}
+
+// ── Universal knockout schedule: the REAL fixtures (same for everyone) + kickoff
+// times, filling in teams as each round resolves. Not the user's bracket path, so
+// there's no per-person divergence. Shown on every bracket, incl. second-chance.
+const KO_ROUND_LABEL: Record<string, string> = {
+  R32: "Round of 32", R16: "Round of 16", QF: "Quarter-final",
+  SF: "Semi-final", third: "Third place", final: "Final",
+};
+interface KoEntry { no: number; stage: string; kickoffUTC: string; date: string; venue?: string; city?: string }
+
+function KnockoutSchedule({ now, isPreview }: { now: Date; isPreview: boolean }) {
+  const { round32: realR32, truth } = useTournament(now, isPreview);
+  const winners: KnockoutWinners = {};
+  for (const [k, v] of Object.entries(truth?.knockoutWinners ?? {})) winners[k] = String(v);
+  const resolved = realR32 ? resolveKnockoutFrom(realR32, winners) : null;
+
+  if (!resolved) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+        🏆 The knockout schedule appears here once the group stage finishes and the Round of 32 is set.
+      </div>
+    );
+  }
+
+  const entries = (koSchedule as KoEntry[]).slice().sort((a, b) => Date.parse(a.kickoffUTC) - Date.parse(b.kickoffUTC));
+  const days: { date: string; label: string; rows: KoEntry[] }[] = [];
+  for (const e of entries) {
+    const last = days[days.length - 1];
+    if (last && last.date === e.date) last.rows.push(e);
+    else
+      days.push({
+        date: e.date,
+        label: new Date(e.kickoffUTC).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+        rows: [e],
+      });
+  }
+
+  const Side = ({ t }: { t: { code: string; name: string } | null }) =>
+    t ? (
+      <span className="flex min-w-0 items-center gap-1">
+        <span className="shrink-0 leading-none">{flag(t.code)}</span>
+        <span className="truncate">{t.name}</span>
+      </span>
+    ) : (
+      <span className="italic text-slate-400">TBD</span>
+    );
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">🏆 Knockout schedule</h3>
+      {days.map((day) => (
+        <section
+          key={day.date}
+          className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        >
+          <header className="flex items-center justify-between bg-slate-50 px-4 py-2 dark:bg-slate-800/60">
+            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">{day.label}</h4>
+            <span className="text-[10px] text-slate-400">
+              {day.rows.length} {day.rows.length === 1 ? "match" : "matches"}
+            </span>
+          </header>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {day.rows.map((e) => {
+              const m = resolved.get(e.no);
+              const time = new Date(e.kickoffUTC).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+              return (
+                <div key={e.no} className="flex items-center gap-2 px-3 py-2 text-sm">
+                  <div className="w-14 shrink-0 text-right">
+                    <div className="text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">{time}</div>
+                    <div className="text-[9px] uppercase tracking-wide text-slate-400">
+                      {KO_ROUND_LABEL[e.stage] ?? e.stage}
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 text-xs font-medium">
+                      <Side t={m?.home ?? null} />
+                      <span className="shrink-0 text-slate-400">v</span>
+                      <Side t={m?.away ?? null} />
+                    </div>
+                    {e.city && <div className="text-[10px] text-slate-400">{e.city}</div>}
+                  </div>
+                  {m?.winner && (
+                    <span className="shrink-0 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                      ✓ {m.winner.name}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
