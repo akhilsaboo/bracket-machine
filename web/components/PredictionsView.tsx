@@ -539,7 +539,7 @@ function GameRow({
             ? gameOdds?.frozen[match.home!.code] || gameOdds?.frozen[match.away!.code]
               ? "🔒 odds locked"
               : "live odds · pays more for the underdog"
-            : `worth ${base} pts`}
+            : `⏳ odds not posted yet — ${base} pts for now`}
         </p>
       )}
     </div>
