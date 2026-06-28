@@ -1,7 +1,7 @@
 // Score a bracket against the current set of match results.
 import type { Fixture } from "@/lib/data";
 import { resolveKnockout, resolveKnockoutFrom, type KOMatch } from "@/lib/knockout";
-import { groupIsComplete, groupStandings, round32, withResults, type ResolvedFixture } from "@/lib/compute";
+import { round32, withResults, type ResolvedFixture } from "@/lib/compute";
 import type { KnockoutWinners, Predictions } from "@/lib/predictions";
 import { gradeGroup, type GroupResult, type TournamentTruth } from "@/lib/results";
 
@@ -263,27 +263,15 @@ export function realRound32FromTruth(truth: TournamentTruth): ResolvedFixture[] 
   return round32(preds);
 }
 
-// The 16 home slots and 8 of the away slots are FIXED group-position labels
-// ("2A", "1E", …) that depend on ONLY that one group, so they resolve per-group —
-// a partial bracket still earns the groups it completed. The other 8 away slots are
-// third-place teams whose placement needs the whole-tournament picture, so those
-// count only when the full bracket is predictable. ("3X" labels start with '3'.)
-const POS_IDX: Record<string, number> = { "1": 0, "2": 1 };
-
-/** The team a bracket predicts for a fixed "1X"/"2X" R32 slot — but only if that
- *  group's predictions are complete. null for third-place labels or unfinished groups. */
-function predictedSlotTeam(label: string, predictions: Predictions): string | null {
-  const idx = POS_IDX[label[0]];
-  if (idx === undefined) return null; // "3X" → not resolvable from a single group
-  const group = label.slice(1);
-  if (!groupIsComplete(group, predictions)) return null;
-  return groupStandings(group, predictions)[idx]?.record.team.code ?? null;
-}
-
 /** R32 slots the bracket placed exactly right, as `${matchNo}:home`/`:away` keys —
- *  used for both the score and the green +10 markers in the bracket UI. Works on
- *  partial brackets: each slot is graded independently, so completed groups count
- *  even if the rest of the bracket is unfinished. */
+ *  used for both the score and the green +10 markers in the bracket UI.
+ *
+ *  Dead-simple position-by-position comparison: the bracket's R32 exactly as shown
+ *  (its own group picks, gap-filled with real results so it's always complete, even
+ *  on a partial bracket) vs the real R32, slot by slot. A slot's team must also be
+ *  ELIGIBLE — the bracket predicted ≥2 of its group games — which is the only farm
+ *  guard: a gap-filled team the bracket never actually picked isn't eligible, so an
+ *  empty/late bracket banks nothing even though its gap-filled R32 equals reality. */
 export function exactSeedingSlots(
   predictions: Predictions,
   truth: TournamentTruth | null,
@@ -292,24 +280,21 @@ export function exactSeedingSlots(
   const out = new Set<string>();
   if (!truth) return out;
   const real = realRound32FromTruth(truth); // real R32 (truth is complete): slot → team
-  if (!real) return out;
-  // Third-place away slots need the full predicted bracket (null on a partial one).
-  const predFull = round32(predictions);
-  const predFullByMatch = predFull ? new Map(predFull.map((f) => [f.match, f])) : null;
+  const pred = round32(withResults(predictions, truth.groupResults)); // bracket's R32 as shown
+  if (!real || !pred) return out;
+  const realByMatch = new Map(real.map((f) => [f.match, f]));
 
-  const mark = (match: number, side: "home" | "away", realTeam: { code: string } | null, predCode: string | null) => {
-    if (realTeam && predCode && predCode === realTeam.code && eligibleExact.has(realTeam.code)) {
+  const mark = (match: number, side: "home" | "away", realTeam: { code: string } | null, predTeam: { code: string } | null) => {
+    if (realTeam && predTeam && predTeam.code === realTeam.code && eligibleExact.has(realTeam.code)) {
       out.add(`${match}:${side}`);
     }
   };
 
-  for (const f of real) {
-    mark(f.match, "home", f.home, predictedSlotTeam(f.homeLabel, predictions));
-    const awayPred =
-      f.awayLabel[0] === "3"
-        ? (predFullByMatch?.get(f.match)?.away?.code ?? null)
-        : predictedSlotTeam(f.awayLabel, predictions);
-    mark(f.match, "away", f.away, awayPred);
+  for (const f of pred) {
+    const r = realByMatch.get(f.match);
+    if (!r) continue;
+    mark(f.match, "home", r.home, f.home);
+    mark(f.match, "away", r.away, f.away);
   }
   return out;
 }
