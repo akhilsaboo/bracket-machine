@@ -128,6 +128,21 @@ export function isKoRoundStarted(matchNo: number, now: Date): boolean {
   return start !== undefined && now.getTime() >= start;
 }
 
+const KICKOFF_MS: Record<number, number> = (() => {
+  const m: Record<number, number> = {};
+  for (const e of koSchedule as KoEntry[]) {
+    const t = Date.parse(e.kickoffUTC);
+    if (Number.isFinite(t)) m[e.no] = t;
+  }
+  return m;
+})();
+
+/** True once a specific knockout match has kicked off (game-prediction lock). */
+export function isKoMatchStarted(matchNo: number, now: Date): boolean {
+  const k = KICKOFF_MS[matchNo];
+  return k !== undefined && now.getTime() >= k;
+}
+
 // --- Tournament truth ------------------------------------------------------
 // A single source-of-truth bundle used to score all brackets against the same
 // outcome. In preview mode it's deterministic; once a live results source is

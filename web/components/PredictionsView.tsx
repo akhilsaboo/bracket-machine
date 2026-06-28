@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FUTURES, fetchFuture, type KalshiMarketData } from "@/lib/kalshi";
+import { FUTURES, fetchFuture, fetchGameOdds, type GameOdds, type KalshiMarketData } from "@/lib/kalshi";
 import { flag, flagFromIso2 } from "@/lib/flags";
-import { isKnockoutStarted, tournamentHasStarted } from "@/lib/results";
+import { isKoMatchStarted, tournamentHasStarted } from "@/lib/results";
 import { useTournament } from "@/lib/liveResults";
 import { resolveKnockoutFrom, type KnockoutWinners, type KOMatch } from "@/lib/knockout";
 import { usePredictions } from "@/lib/predictions";
@@ -97,7 +97,6 @@ function usePredictionPicks(): { picks: Picks; setPick: SetPick; userId: string 
 export function PredictionsView() {
   const { now } = usePredictions();
   const [tab, setTab] = useState<"futures" | "games">("futures");
-  const gamesOpen = isKnockoutStarted(now);
   const started = tournamentHasStarted(now);
   const { picks, setPick, userId } = usePredictionPicks();
 
@@ -129,12 +128,8 @@ export function PredictionsView() {
 
       {tab === "futures" ? (
         <FuturesTab picks={picks} setPick={setPick} userId={userId} started={started} />
-      ) : gamesOpen ? (
-        <GamesTab picks={picks} setPick={setPick} userId={userId} />
       ) : (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
-          ⚔️ Game-by-game predictions unlock when the knockout rounds begin (Jun 28).
-        </div>
+        <GamesTab picks={picks} setPick={setPick} userId={userId} />
       )}
     </div>
   );
@@ -369,6 +364,16 @@ const KO_ORDER = [
 function GamesTab({ picks, setPick }: { picks: Picks; setPick: SetPick; userId: string | null }) {
   const { now, isPreview } = usePredictions();
 
+  // Live "to advance" odds (KXWCADVANCE), keyed by team code. Drives point values.
+  const [gameOdds, setGameOdds] = useState<GameOdds | null>(null);
+  useEffect(() => {
+    let on = true;
+    fetchGameOdds().then((d) => on && setGameOdds(d));
+    return () => {
+      on = false;
+    };
+  }, []);
+
   // Real knockout state: R32 + real winners from the tournament truth (mock under
   // preview, real ESPN feed otherwise). Winners advance the tree so matchups
   // unlock as games are played.
@@ -429,6 +434,8 @@ function GamesTab({ picks, setPick }: { picks: Picks; setPick: SetPick; userId: 
                 match={resolved.get(no)!}
                 pick={picks[`game:${no}`] ?? null}
                 onPick={(p) => setPick(`game:${no}`, p)}
+                gameOdds={gameOdds}
+                locked={isKoMatchStarted(no, now)}
               />
             ))}
           </div>
@@ -448,19 +455,24 @@ function GameRow({
   match,
   pick,
   onPick,
+  gameOdds,
+  locked,
 }: {
   no: number;
   match: KOMatch;
   pick: Pick | null;
   onPick: (p: Pick | null) => void;
+  gameOdds: GameOdds | null;
+  locked: boolean; // match has kicked off → picks frozen
 }) {
   const { base } = koMeta(no);
   const winner = match.winner; // real result (null until played)
   const played = !!winner;
   const teams = [match.home!, match.away!];
-  // Per-team market odds aren't available until per-game Kalshi markets open
-  // (same schedule as Futures); until then prob is null → points = round base.
-  const teamProb = (_t: KOMatch["home"]): number | null => null;
+  // Per-team "to advance" % from the live Kalshi market (null until that game's
+  // market opens) → drives the point value (underdogs pay more).
+  const teamProb = (t: KOMatch["home"]): number | null =>
+    (t && gameOdds?.odds[t.code]) ?? null;
   const earned = pick?.points ?? base;
 
   return (
@@ -474,7 +486,7 @@ function GameRow({
           return (
             <button
               key={t.code}
-              disabled={played}
+              disabled={locked || played}
               onClick={() => onPick(selected ? null : { ticker: t.code, label: t.name, prob, points: gamePoints(no, prob) })}
               className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
                 isWinner
@@ -482,13 +494,15 @@ function GameRow({
                   : selected
                     ? "border-[var(--wc-accent)] bg-[var(--wc-accent)]/10 font-semibold"
                     : "border-slate-200 dark:border-slate-700"
-              } ${played ? "cursor-default" : "hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5"}`}
+              } ${locked || played ? "cursor-default" : "hover:border-[var(--wc-accent)] hover:bg-[var(--wc-accent)]/5"} ${
+                locked && !played && !selected ? "opacity-60" : ""
+              }`}
             >
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="shrink-0 leading-none">{flag(t.code)}</span>
                 <span className="truncate">{t.name}</span>
               </span>
-              {showResult && (
+              {showResult ? (
                 <span className="shrink-0 text-xs font-bold">
                   {isWinner ? (
                     <span className="text-emerald-600 dark:text-emerald-400">✓ +{earned}</span>
@@ -496,6 +510,16 @@ function GameRow({
                     <span className="text-red-500">✗</span>
                   )}
                 </span>
+              ) : (
+                !played &&
+                !locked && (
+                  <span className="shrink-0 text-right text-[11px] leading-tight">
+                    <span className="block tabular-nums text-slate-400">{prob == null ? "—" : `${prob}%`}</span>
+                    <span className="block font-bold tabular-nums text-[var(--wc-accent)]">
+                      {gamePoints(no, prob)} pts
+                    </span>
+                  </span>
+                )
               )}
             </button>
           );
@@ -506,8 +530,17 @@ function GameRow({
           No pick · winner: {flag(winner!.code)} {winner!.name}
         </p>
       )}
-      {!played && (
-        <p className="mt-1 text-right text-[11px] text-slate-400">worth {base} pts</p>
+      {locked && !played && (
+        <p className="mt-1 text-right text-[10px] text-slate-400">🔒 kicked off — pick locked</p>
+      )}
+      {!played && !locked && (
+        <p className="mt-1 text-right text-[10px] text-slate-400">
+          {gameOdds?.odds[match.home!.code] != null || gameOdds?.odds[match.away!.code] != null
+            ? gameOdds?.frozen[match.home!.code] || gameOdds?.frozen[match.away!.code]
+              ? "🔒 odds locked"
+              : "live odds · pays more for the underdog"
+            : `worth ${base} pts`}
+        </p>
       )}
     </div>
   );

@@ -109,3 +109,21 @@ export async function fetchFuture(key: string): Promise<KalshiMarketData | null>
     return null;
   }
 }
+
+/** Live "to advance" odds for the knockout games (KXWCADVANCE), keyed by team
+ *  code → implied % (0..100). `frozen[code]` is true once that game's odds locked
+ *  (~24h before kickoff). Empty until the knockout markets open. */
+export interface GameOdds {
+  odds: Record<string, number>;
+  frozen: Record<string, boolean>;
+  fetchedAt: string;
+}
+export async function fetchGameOdds(): Promise<GameOdds | null> {
+  try {
+    const r = await fetch("/api/game-odds");
+    if (!r.ok) return null;
+    return (await r.json()) as GameOdds;
+  } catch {
+    return null;
+  }
+}
