@@ -189,7 +189,12 @@ export function BracketView({ onGoToPools }: { onGoToPools?: () => void }) {
           )}
           {isSecondChance && (
             <span className="mt-1 block">
-              ⚡ <strong>Double or Nothing:</strong> stake one pick per round with the <span className="rounded bg-amber-500/20 px-1 font-semibold text-amber-700 dark:text-amber-300">✦</span> button — nail it and that round&rsquo;s points <strong>double</strong>; miss and you <strong>lose</strong> them. Stake none if you&rsquo;d rather play it safe.
+              ⚡ <strong>Double or Nothing:</strong> stake one pick per round with the <span className="rounded bg-amber-500/20 px-1 font-semibold text-amber-700 dark:text-amber-300">✦</span> button — nail it and that round&rsquo;s points <strong>double</strong>; miss and you <strong>lose</strong> them. Set each round&rsquo;s stake any time before it kicks off. Stake none if you&rsquo;d rather play it safe.
+            </span>
+          )}
+          {isSecondChance && (
+            <span className="mt-1 block rounded-md bg-slate-500/10 px-2 py-1 text-slate-600 dark:text-slate-300">
+              🔄 This is a <strong>separate side game</strong>: it has its own leaderboard, can be added to your pools, and <strong>never affects your main bracket</strong> or its standings.
             </span>
           )}
         </p>
